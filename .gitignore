@@ -208,3 +208,10 @@ __marimo__/
 
 # macOS
 .DS_Store
+
+# Web view
+web_view/node_modules/
+web_view/dist/
+
+# VS Code
+.vscode
