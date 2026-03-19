@@ -6,7 +6,9 @@ import time
 from game import Game
 from mcts import MCTSAgent
 
-_game = Game(size=9)
+BOARD_SIZE = 7
+
+_game = Game(size=BOARD_SIZE)
 _agent = MCTSAgent()
 _lock = threading.Lock()
 _running = False
@@ -32,7 +34,7 @@ def _play_loop():
         if game_over:
             time.sleep(3)
             with _lock:
-                _game = Game(size=9)
+                _game = Game(size=BOARD_SIZE)
         else:
             time.sleep(0.05)
 

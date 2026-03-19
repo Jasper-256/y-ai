@@ -5,7 +5,7 @@ from libc.string cimport memcpy, memset
 
 
 cdef class Board:
-    def __init__(self, int size=9):
+    def __init__(self, int size):
         self.size = size
         memset(self._cells, 0, sizeof(self._cells))
 
