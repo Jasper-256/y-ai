@@ -15,7 +15,7 @@ function App() {
           setError(null);
         })
         .catch(() => setError("Cannot reach server"));
-    }, 1000);
+    }, 200);
     // Initial fetch
     fetch("http://localhost:5001/state")
       .then((r) => r.json())
@@ -33,7 +33,7 @@ function App() {
 
   const statusText = state.winner
     ? `Player ${state.winner} (${state.winner === 1 ? "Red" : "Blue"}) wins!`
-    : `Turn: Player ${state.current_player} (${state.current_player === 1 ? "Red" : "Blue"}) / Move ${state.move_history.length + 1}`;
+    : `Turn: Player ${state.current_player} (${state.current_player === 1 ? "Red" : "Blue"})`;
 
   return (
     <div className="container">
@@ -46,7 +46,7 @@ function App() {
           moveHistory={state.move_history}
         />
       </div>
-      <p className="move-count">{state.move_history.length} moves played</p>
+      <p className="move-count">{state.move_history.length} {state.move_history.length === 1 ? "move" : "moves"} played</p>
     </div>
   );
 }

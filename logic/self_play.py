@@ -7,7 +7,7 @@ from game import Game
 from mcts import MCTSAgent
 
 _game = Game(size=9)
-_agent = MCTSAgent(iterations=800)
+_agent = MCTSAgent()
 _lock = threading.Lock()
 _running = False
 
@@ -22,12 +22,19 @@ def _play_loop():
     while True:
         with _lock:
             if _game.is_over():
-                break
-            move = _agent.choose_move(_game)
-            if move is None:
-                break
-            _game.make_move(*move)
-        time.sleep(1.5)
+                game_over = True
+            else:
+                game_over = False
+                move = _agent.choose_move(_game)
+                if move is None:
+                    break
+                _game.make_move(*move)
+        if game_over:
+            time.sleep(3)
+            with _lock:
+                _game = Game(size=9)
+        else:
+            time.sleep(0.05)
 
 
 def start():

@@ -1,32 +1,33 @@
-"""Game wrapper: turn tracking, move application, serialization."""
+# cython: language_level=3
+"""Game wrapper: turn tracking, move application, serialization — Cython."""
 
-from board import Board
+from board cimport Board
 
 
-class Game:
-    def __init__(self, size=9):
+cdef class Game:
+    def __init__(self, int size=9):
         self.board = Board(size)
         self.current_player = 1  # Red goes first
         self.winner = 0
         self.move_history = []
 
-    def copy(self):
-        g = Game.__new__(Game)
+    cpdef Game copy(self):
+        cdef Game g = Game.__new__(Game)
         g.board = self.board.copy()
         g.current_player = self.current_player
         g.winner = self.winner
         g.move_history = list(self.move_history)
         return g
 
-    def legal_moves(self):
+    cpdef list legal_moves(self):
         if self.winner:
             return []
         return self.board.empty_cells()
 
-    def make_move(self, row, col):
+    cpdef bint make_move(self, int row, int col):
         if self.winner:
             return False
-        if self.board.cells.get((row, col), -1) != 0:
+        if self.board.get_cell(row, col) != 0:
             return False
         self.board.place(row, col, self.current_player)
         self.move_history.append((row, col, self.current_player))
@@ -36,13 +37,15 @@ class Game:
             self.current_player = 3 - self.current_player
         return True
 
-    def is_over(self):
+    cpdef bint is_over(self):
         return self.winner != 0
 
     def to_dict(self):
+        cdef int r, c
         cells = {}
-        for (r, c), v in self.board.cells.items():
-            cells[f"{r},{c}"] = v
+        for r in range(self.board.size):
+            for c in range(r + 1):
+                cells[f"{r},{c}"] = self.board.get_cell(r, c)
         return {
             "size": self.board.size,
             "cells": cells,
