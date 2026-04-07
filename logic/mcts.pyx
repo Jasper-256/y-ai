@@ -9,7 +9,7 @@ from game cimport Game
 
 # ── Hyperparameters ──
 cdef double UCB1_C = 1.41
-cdef int DEFAULT_ITERATIONS = 50_000
+cdef int DEFAULT_ITERATIONS = 1_000
 
 
 cdef class MCTSNode:

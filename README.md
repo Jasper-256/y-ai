@@ -10,9 +10,12 @@ Game of Y is a connection board game played on a triangular hex grid. Two player
 
 This project implements:
 - A Python game engine with a triangular hex board, adjacency logic, and BFS-based win detection
-- An MCTS (Monte Carlo Tree Search) AI agent that plays against itself using UCB1 selection and random rollouts
+- An MCTS (Monte Carlo Tree Search) AI agent using UCB1 selection and random rollouts
+- A TD(0) (Temporal Difference) AI agent with a neural network value function
+- A random baseline agent
+- An arena for running tournaments between agents and recording win rates
 - A Flask API that serves the live game state
-- A React frontend that visualizes the board in real-time as the AI plays
+- A React frontend that visualizes games in real-time with a matchup picker to watch different agents play each other
 
 ## Setup
 
@@ -49,21 +52,48 @@ cd web_view
 npm run dev
 ```
 
-Open http://localhost:5173 to watch the agent play against itself.
+Open http://localhost:5173 to watch agents play. Use the dropdowns to pick which agents play as Red and Blue (MCTS, TD(0), or Random).
+
+### Arena
+
+The arena runs a round-robin tournament between agents and prints win rates, head-to-head results, and first-player advantage stats.
+
+```bash
+cd logic
+source venv/bin/activate
+
+# Run all three agents against each other (100 games per matchup)
+python arena.py
+
+# Just Random vs TD
+python arena.py --agents random td
+
+# Customize settings
+python arena.py --games 200 --size 5 --mcts-iters 1000
+
+# Train a fresh TD model (instead of loading the saved one)
+python arena.py --agents random td --td-retrain --td-train 10000
+
+# Load a specific TD model
+python arena.py --td-model path/to/model.pkl
+```
 
 ## Project Structure
 
 ```
 logic/
-  board.py          # Board representation, adjacency, win detection (BFS)
-  game.py           # Game state: turn tracking, move application, serialization
-  mcts.py           # MCTS agent: UCB1 selection, expansion, random rollout
-  self_play.py      # Thread-safe self-play loop with delay for visualization
-  server.py         # Flask API: GET /state endpoint
+  board.pyx         # Board representation, adjacency, win detection (BFS) — Cython
+  game.pyx          # Game state: turn tracking, move application, serialization — Cython
+  mcts.pyx          # MCTS agent: UCB1 selection, expansion, random rollout — Cython
+  td_agent.py       # TD(0) agent: MLP value function, self-play training
+  random_agent.py   # Random baseline agent
+  arena.py          # Tournament runner: round-robin matchups with win rate stats
+  self_play.py      # Thread-safe play loop with configurable agents
+  server.py         # Flask API: GET /state, POST /set_agents
   requirements.txt  # Python dependencies
 
 web_view/           # Vite + React app
   src/
-    App.jsx         # Polls /state every 1s, displays turn/winner
+    App.jsx         # Polls /state, agent matchup picker
     Board.jsx       # SVG triangular hex board renderer
 ```

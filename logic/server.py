@@ -4,16 +4,16 @@ import subprocess
 import sys
 import os
 
-# ── Compile Cython MCTS before importing anything that needs it ──
+# ── Compile Cython modules before importing anything that needs them ──
 _logic_dir = os.path.dirname(os.path.abspath(__file__))
-print("Compiling Cython MCTS module…")
+print("Compiling Cython modules…")
 subprocess.check_call(
     [sys.executable, "setup_cython.py", "build_ext", "--inplace"],
     cwd=_logic_dir,
 )
-print("Cython MCTS module ready.")
+print("Cython modules ready.")
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 
 import self_play
@@ -25,6 +25,17 @@ CORS(app)
 @app.route("/state")
 def state():
     return jsonify(self_play.get_state())
+
+
+@app.route("/set_agents", methods=["POST"])
+def set_agents():
+    data = request.get_json(force=True)
+    p1 = data.get("player1", "mcts")
+    p2 = data.get("player2", "mcts")
+    ok = self_play.set_agents(p1, p2)
+    if ok:
+        return jsonify({"status": "ok"})
+    return jsonify({"status": "error", "message": "unknown agent key"}), 400
 
 
 if __name__ == "__main__":

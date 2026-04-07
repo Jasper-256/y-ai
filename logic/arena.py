@@ -1,0 +1,229 @@
+#!/usr/bin/env python3
+"""Arena: pit agents against each other and record win rates.
+
+Usage:
+    python arena.py                          # default matchups
+    python arena.py --games 200 --size 5     # custom settings
+
+The arena plays N games for each ordered pair (agent_as_P1, agent_as_P2),
+so each pair plays 2*N games total (N with each side).
+"""
+
+import sys
+import os
+import subprocess
+import time
+import argparse
+from collections import defaultdict
+
+# Ensure the logic directory is importable
+_logic_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, _logic_dir)
+
+# Build Cython modules
+print("Compiling Cython modules...")
+subprocess.check_call(
+    [sys.executable, "setup_cython.py", "build_ext", "--inplace"],
+    cwd=_logic_dir,
+)
+print("Cython modules ready.")
+
+from game import Game
+from mcts import MCTSAgent
+from random_agent import RandomAgent
+from td_agent import TDAgent
+
+
+def play_game(agent1, agent2, board_size=7):
+    """Play a single game. agent1 is player 1 (Red), agent2 is player 2 (Blue).
+
+    Returns the winner (1 or 2), or 0 for no result.
+    """
+    game = Game(size=board_size)
+    agents = {1: agent1, 2: agent2}
+
+    while not game.is_over():
+        agent = agents[game.current_player]
+        move = agent.choose_move(game)
+        if move is None:
+            break
+        game.make_move(move[0], move[1])
+
+    return game.winner
+
+
+def run_tournament(agents, games_per_matchup=100, board_size=7):
+    """Run a round-robin tournament between named agents.
+
+    Args:
+        agents: dict of {name: agent_instance}
+        games_per_matchup: Games per ordered pair (each agent plays this many
+                           games as P1 against each opponent).
+        board_size: Board size for all games.
+
+    Returns:
+        results: dict of (name1, name2) -> {1: wins_for_name1, 2: wins_for_name2}
+    """
+    names = list(agents.keys())
+    results = {}
+
+    for i, name1 in enumerate(names):
+        for j, name2 in enumerate(names):
+            if i == j:
+                continue
+
+            key = (name1, name2)
+            wins = {1: 0, 2: 0}
+            agent1 = agents[name1]
+            agent2 = agents[name2]
+
+            print(f"\n{name1} (P1) vs {name2} (P2): ", end="", flush=True)
+            t0 = time.time()
+
+            for g in range(games_per_matchup):
+                winner = play_game(agent1, agent2, board_size)
+                if winner in (1, 2):
+                    wins[winner] += 1
+                if (g + 1) % 10 == 0:
+                    print(".", end="", flush=True)
+
+            elapsed = time.time() - t0
+            print(f" done ({elapsed:.1f}s)")
+            print(f"  {name1} wins: {wins[1]}, {name2} wins: {wins[2]}")
+            results[key] = wins
+
+    return results
+
+
+def print_summary(agents, results, games_per_matchup):
+    """Print a summary table of overall win rates."""
+    names = list(agents.keys())
+
+    # Aggregate: total wins and total games for each agent
+    total_wins = defaultdict(int)
+    total_games = defaultdict(int)
+
+    # Head-to-head matrix
+    h2h = {}
+    for name in names:
+        h2h[name] = {}
+
+    for (n1, n2), wins in results.items():
+        total_wins[n1] += wins[1]
+        total_wins[n2] += wins[2]
+        total_games[n1] += wins[1] + wins[2]
+        total_games[n2] += wins[1] + wins[2]
+        # n1 was P1, n2 was P2
+        h2h[n1][n2] = h2h.get(n1, {}).get(n2, 0) + wins[1]
+        h2h[n2][n1] = h2h.get(n2, {}).get(n1, 0) + wins[2]
+
+    # Print overall standings
+    print("\n" + "=" * 60)
+    print("OVERALL STANDINGS")
+    print("=" * 60)
+    standings = []
+    for name in names:
+        tg = total_games[name]
+        tw = total_wins[name]
+        rate = tw / tg if tg > 0 else 0.0
+        standings.append((name, tw, tg, rate))
+
+    standings.sort(key=lambda x: -x[3])
+    print(f"{'Agent':<20} {'Wins':>6} {'Games':>7} {'Win%':>7}")
+    print("-" * 42)
+    for name, tw, tg, rate in standings:
+        print(f"{name:<20} {tw:>6} {tg:>7} {rate:>6.1%}")
+
+    # Print head-to-head matrix
+    print("\n" + "=" * 60)
+    print("HEAD-TO-HEAD (row vs column, total wins across both sides)")
+    print("=" * 60)
+
+    col_width = max(len(n) for n in names) + 2
+    header = " " * col_width
+    for n in names:
+        header += f"{n:>{col_width}}"
+    print(header)
+
+    for n1 in names:
+        row = f"{n1:<{col_width}}"
+        for n2 in names:
+            if n1 == n2:
+                row += f"{'---':>{col_width}}"
+            else:
+                w = h2h.get(n1, {}).get(n2, 0)
+                total = w + h2h.get(n2, {}).get(n1, 0)
+                if total > 0:
+                    row += f"{f'{w}/{total}':>{col_width}}"
+                else:
+                    row += f"{'N/A':>{col_width}}"
+        print(row)
+
+    # Print P1/P2 advantage
+    print("\n" + "=" * 60)
+    print("FIRST-PLAYER ADVANTAGE (per matchup)")
+    print("=" * 60)
+    print(f"{'Matchup':<30} {'P1 wins':>8} {'P2 wins':>8} {'P1 rate':>8}")
+    print("-" * 56)
+    for (n1, n2), wins in sorted(results.items()):
+        total = wins[1] + wins[2]
+        p1_rate = wins[1] / total if total > 0 else 0.0
+        print(f"{n1} vs {n2:<18} {wins[1]:>8} {wins[2]:>8} {p1_rate:>7.1%}")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Arena: pit Game of Y agents against each other")
+    parser.add_argument("--games", type=int, default=100,
+                        help="Games per matchup direction (default: 100)")
+    parser.add_argument("--size", type=int, default=7,
+                        help="Board size (default: 7)")
+    parser.add_argument("--mcts-iters", type=int, default=1000,
+                        help="MCTS iterations per move (default: 1000)")
+    parser.add_argument("--td-train", type=int, default=2000,
+                        help="Number of self-play games to train the TD agent (default: 2000)")
+    parser.add_argument("--td-retrain", action="store_true",
+                        help="Force training a new TD model even if one exists")
+    parser.add_argument("--td-model", type=str, default=None,
+                        help="Path to a saved TD model (skip training)")
+    parser.add_argument("--agents", type=str, nargs="+",
+                        default=["random", "td", "mcts"],
+                        help="Which agents to include: random, td, mcts (default: all)")
+    args = parser.parse_args()
+
+    agents = {}
+
+    if "random" in args.agents:
+        agents["Random"] = RandomAgent()
+        print("Loaded Random agent.")
+
+    if "td" in args.agents:
+        model_path = args.td_model or os.path.join(_logic_dir, f"td_model_s{args.size}.pkl")
+        if not args.td_retrain and os.path.exists(model_path):
+            td = TDAgent.load(model_path)
+            print(f"Loaded TD agent from {model_path}")
+        else:
+            print(f"Training TD agent ({args.td_train} self-play games on size {args.size} board)...")
+            td = TDAgent(board_size=args.size, hidden_size=128, lr=0.01, epsilon=0.1)
+            td.train(num_games=args.td_train, board_size=args.size)
+            save_path = args.td_model or os.path.join(_logic_dir, f"td_model_s{args.size}.pkl")
+            td.save(save_path)
+        agents["TD(0)"] = td
+
+    if "mcts" in args.agents:
+        agents[f"MCTS({args.mcts_iters})"] = MCTSAgent(iterations=args.mcts_iters)
+        print(f"Loaded MCTS agent ({args.mcts_iters} iterations).")
+
+    if len(agents) < 2:
+        print("Need at least 2 agents. Use --agents to specify.")
+        sys.exit(1)
+
+    print(f"\nStarting tournament: {list(agents.keys())}")
+    print(f"Board size: {args.size}, Games per matchup: {args.games}")
+    print("=" * 60)
+
+    results = run_tournament(agents, games_per_matchup=args.games, board_size=args.size)
+    print_summary(agents, results, args.games)
+
+
+if __name__ == "__main__":
+    main()

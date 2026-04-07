@@ -1,22 +1,76 @@
-"""Thread-safe self-play loop with delay for visualization."""
+"""Thread-safe self-play loop with configurable agents."""
 
+import os
 import threading
 import time
 
 from game import Game
 from mcts import MCTSAgent
+from random_agent import RandomAgent
+from td_agent import TDAgent
 
 BOARD_SIZE = 7
+MOVE_DELAY = 0.3  # seconds between moves for watchability
+GAME_OVER_DELAY = 3
+
+# Available agent constructors
+AGENT_REGISTRY = {
+    "mcts": lambda: MCTSAgent(iterations=5000),
+    "random": lambda: RandomAgent(),
+    "td": lambda: _load_td_agent(),
+}
+
+AGENT_LABELS = {
+    "mcts": "MCTS (5k iter)",
+    "random": "Random",
+    "td": "TD(0)",
+}
+
+
+def _load_td_agent():
+    model_path = os.path.join(os.path.dirname(__file__), f"td_model_s{BOARD_SIZE}.pkl")
+    if os.path.exists(model_path):
+        return TDAgent.load(model_path)
+    # No saved model — train a quick one
+    print(f"No TD model found at {model_path}, training one...")
+    agent = TDAgent(board_size=BOARD_SIZE, hidden_size=128, lr=0.01, epsilon=0.1)
+    agent.train(num_games=2000, board_size=BOARD_SIZE)
+    agent.save(model_path)
+    return agent
+
 
 _game = Game(size=BOARD_SIZE)
-_agent = MCTSAgent()
+_agents = {1: MCTSAgent(iterations=5000), 2: MCTSAgent(iterations=5000)}
+_agent_names = {1: "mcts", 2: "mcts"}
 _lock = threading.Lock()
 _running = False
 
 
 def get_state():
     with _lock:
-        return _game.to_dict()
+        d = _game.to_dict()
+        d["agents"] = {
+            "1": {"key": _agent_names[1], "label": AGENT_LABELS[_agent_names[1]]},
+            "2": {"key": _agent_names[2], "label": AGENT_LABELS[_agent_names[2]]},
+        }
+        d["available_agents"] = [
+            {"key": k, "label": v} for k, v in AGENT_LABELS.items()
+        ]
+        return d
+
+
+def set_agents(p1_key, p2_key):
+    """Swap in new agents and restart the game."""
+    global _game, _agents, _agent_names
+    if p1_key not in AGENT_REGISTRY or p2_key not in AGENT_REGISTRY:
+        return False
+    with _lock:
+        _agent_names[1] = p1_key
+        _agent_names[2] = p2_key
+        _agents[1] = AGENT_REGISTRY[p1_key]()
+        _agents[2] = AGENT_REGISTRY[p2_key]()
+        _game = Game(size=BOARD_SIZE)
+    return True
 
 
 def _play_loop():
@@ -27,16 +81,17 @@ def _play_loop():
                 game_over = True
             else:
                 game_over = False
-                move = _agent.choose_move(_game)
+                agent = _agents[_game.current_player]
+                move = agent.choose_move(_game)
                 if move is None:
                     break
                 _game.make_move(*move)
         if game_over:
-            time.sleep(3)
+            time.sleep(GAME_OVER_DELAY)
             with _lock:
                 _game = Game(size=BOARD_SIZE)
         else:
-            time.sleep(0.05)
+            time.sleep(MOVE_DELAY)
 
 
 def start():
