@@ -12,6 +12,7 @@ This project implements:
 - A Python game engine with a triangular hex board, adjacency logic, and BFS-based win detection
 - An MCTS (Monte Carlo Tree Search) AI agent using UCB1 selection and random rollouts
 - A TD(0) (Temporal Difference) AI agent with a neural network value function
+- A TD(λ) agent extending TD(0) with eligibility traces for multi-step credit assignment
 - A random baseline agent
 - An arena for running tournaments between agents and recording win rates
 - A Flask API that serves the live game state
@@ -52,7 +53,7 @@ cd web_view
 npm run dev
 ```
 
-Open http://localhost:5173 to watch agents play. Use the dropdowns to pick which agents play as Red and Blue (MCTS, TD(0), or Random).
+Open http://localhost:5173 to watch agents play. Use the dropdowns to pick which agents play as Red and Blue (MCTS, TD(0), TD(λ), or Random).
 
 ### Arena
 
@@ -68,11 +69,17 @@ python arena.py
 # Just Random vs TD
 python arena.py --agents random td
 
+# Include TD(λ) in the tournament
+python arena.py --agents random td td_lambda
+
 # Customize settings
 python arena.py --games 200 --size 5 --mcts-iters 1000
 
 # Train a fresh TD model (instead of loading the saved one)
 python arena.py --agents random td --td-retrain --td-train 10000
+
+# Set a custom lambda value for TD(λ) (default: 0.7)
+python arena.py --agents td td_lambda --td-lambda 0.9
 
 # Load a specific TD model
 python arena.py --td-model path/to/model.pkl
@@ -86,6 +93,7 @@ logic/
   game.pyx          # Game state: turn tracking, move application, serialization — Cython
   mcts.pyx          # MCTS agent: UCB1 selection, expansion, random rollout — Cython
   td_agent.py       # TD(0) agent: MLP value function, self-play training
+  td_lambda_agent.py # TD(λ) agent: TD(0) + eligibility traces for multi-step updates
   random_agent.py   # Random baseline agent
   arena.py          # Tournament runner: round-robin matchups with win rate stats
   self_play.py      # Thread-safe play loop with configurable agents

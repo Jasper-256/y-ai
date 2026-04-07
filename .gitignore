@@ -216,3 +216,6 @@ web_view/dist/
 
 # VS Code
 .vscode
+
+# Trained files
+*.pkl

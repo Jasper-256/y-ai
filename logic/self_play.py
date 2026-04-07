@@ -8,6 +8,7 @@ from game import Game
 from mcts import MCTSAgent
 from random_agent import RandomAgent
 from td_agent import TDAgent
+from td_lambda_agent import TDLambdaAgent
 
 BOARD_SIZE = 7
 MOVE_DELAY = 0.3  # seconds between moves for watchability
@@ -18,12 +19,14 @@ AGENT_REGISTRY = {
     "mcts": lambda: MCTSAgent(iterations=5000),
     "random": lambda: RandomAgent(),
     "td": lambda: _load_td_agent(),
+    "td_lambda": lambda: _load_td_lambda_agent(),
 }
 
 AGENT_LABELS = {
     "mcts": "MCTS (5k iter)",
     "random": "Random",
     "td": "TD(0)",
+    "td_lambda": "TD(λ)",
 }
 
 
@@ -34,6 +37,17 @@ def _load_td_agent():
     # No saved model — train a quick one
     print(f"No TD model found at {model_path}, training one...")
     agent = TDAgent(board_size=BOARD_SIZE, hidden_size=128, lr=0.01, epsilon=0.1)
+    agent.train(num_games=2000, board_size=BOARD_SIZE)
+    agent.save(model_path)
+    return agent
+
+
+def _load_td_lambda_agent():
+    model_path = os.path.join(os.path.dirname(__file__), f"td_lambda_model_s{BOARD_SIZE}.pkl")
+    if os.path.exists(model_path):
+        return TDLambdaAgent.load(model_path)
+    print(f"No TD(λ) model found at {model_path}, training one...")
+    agent = TDLambdaAgent(board_size=BOARD_SIZE, hidden_size=128, lr=0.01, lam=0.7, epsilon=0.1)
     agent.train(num_games=2000, board_size=BOARD_SIZE)
     agent.save(model_path)
     return agent

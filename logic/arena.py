@@ -32,6 +32,7 @@ from game import Game
 from mcts import MCTSAgent
 from random_agent import RandomAgent
 from td_agent import TDAgent
+from td_lambda_agent import TDLambdaAgent
 
 
 def play_game(agent1, agent2, board_size=7):
@@ -185,9 +186,13 @@ def main():
                         help="Force training a new TD model even if one exists")
     parser.add_argument("--td-model", type=str, default=None,
                         help="Path to a saved TD model (skip training)")
+    parser.add_argument("--td-lambda", type=float, default=0.7,
+                        help="Lambda value for the TD(λ) agent (default: 0.7)")
+    parser.add_argument("--td-lambda-model", type=str, default=None,
+                        help="Path to a saved TD(λ) model (skip training)")
     parser.add_argument("--agents", type=str, nargs="+",
-                        default=["random", "td", "mcts"],
-                        help="Which agents to include: random, td, mcts (default: all)")
+                        default=["random", "td", "td_lambda", "mcts"],
+                        help="Which agents to include: random, td, td_lambda, mcts (default: all)")
     args = parser.parse_args()
 
     agents = {}
@@ -208,6 +213,19 @@ def main():
             save_path = args.td_model or os.path.join(_logic_dir, f"td_model_s{args.size}.pkl")
             td.save(save_path)
         agents["TD(0)"] = td
+
+    if "td_lambda" in args.agents:
+        model_path = args.td_lambda_model or os.path.join(_logic_dir, f"td_lambda_model_s{args.size}.pkl")
+        if not args.td_retrain and os.path.exists(model_path):
+            td_lam = TDLambdaAgent.load(model_path)
+            print(f"Loaded TD(λ) agent from {model_path}")
+        else:
+            print(f"Training TD(λ) agent ({args.td_train} self-play games on size {args.size} board, λ={args.td_lambda})...")
+            td_lam = TDLambdaAgent(board_size=args.size, hidden_size=128, lr=0.01, lam=args.td_lambda, epsilon=0.1)
+            td_lam.train(num_games=args.td_train, board_size=args.size)
+            save_path = args.td_lambda_model or os.path.join(_logic_dir, f"td_lambda_model_s{args.size}.pkl")
+            td_lam.save(save_path)
+        agents[f"TD(λ={args.td_lambda})"] = td_lam
 
     if "mcts" in args.agents:
         agents[f"MCTS({args.mcts_iters})"] = MCTSAgent(iterations=args.mcts_iters)
