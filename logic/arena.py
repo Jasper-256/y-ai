@@ -31,6 +31,7 @@ print("Cython modules ready.")
 from game import Game
 from mcts import MCTSAgent
 from random_agent import RandomAgent
+from heuristic_agent import HeuristicAgent
 from td_agent import TDAgent
 from td_lambda_agent import TDLambdaAgent
 
@@ -192,7 +193,7 @@ def main():
                         help="Path to a saved TD(λ) model (skip training)")
     parser.add_argument("--agents", type=str, nargs="+",
                         default=["random", "td", "td_lambda", "mcts"],
-                        help="Which agents to include: random, td, td_lambda, mcts (default: all)")
+                        help="Which agents to include: random, heuristic, td, td_lambda, mcts (default: all)")
     args = parser.parse_args()
 
     agents = {}
@@ -200,6 +201,10 @@ def main():
     if "random" in args.agents:
         agents["Random"] = RandomAgent()
         print("Loaded Random agent.")
+
+    if "heuristic" in args.agents:
+        agents["Heuristic"] = HeuristicAgent()
+        print("Loaded Heuristic agent.")
 
     if "td" in args.agents:
         model_path = args.td_model or os.path.join(_logic_dir, f"td_model_s{args.size}.pkl")
