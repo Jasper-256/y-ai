@@ -81,6 +81,9 @@ python arena.py --agents random td --td-retrain --td-train 10000
 # Set a custom lambda value for TD(λ) (default: 0.7)
 python arena.py --agents td td_lambda --td-lambda 0.9
 
+# Change the hidden layer size for TD agents (default: 128)
+python arena.py --agents td td_lambda --td-hidden 256 --td-retrain
+
 # Load a specific TD model
 python arena.py --td-model path/to/model.pkl
 ```

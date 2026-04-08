@@ -182,6 +182,8 @@ def main():
                         help="MCTS iterations per move (default: 1000)")
     parser.add_argument("--td-train", type=int, default=2000,
                         help="Number of self-play games to train the TD agent (default: 2000)")
+    parser.add_argument("--td-hidden", type=int, default=128,
+                        help="Hidden layer size for TD agents (default: 128)")
     parser.add_argument("--td-retrain", action="store_true",
                         help="Force training a new TD model even if one exists")
     parser.add_argument("--td-model", type=str, default=None,
@@ -208,7 +210,7 @@ def main():
             print(f"Loaded TD agent from {model_path}")
         else:
             print(f"Training TD agent ({args.td_train} self-play games on size {args.size} board)...")
-            td = TDAgent(board_size=args.size, hidden_size=128, lr=0.01, epsilon=0.1)
+            td = TDAgent(board_size=args.size, hidden_size=args.td_hidden, lr=0.01, epsilon=0.1)
             td.train(num_games=args.td_train, board_size=args.size)
             save_path = args.td_model or os.path.join(_logic_dir, f"td_model_s{args.size}.pkl")
             td.save(save_path)
@@ -221,7 +223,7 @@ def main():
             print(f"Loaded TD(λ) agent from {model_path}")
         else:
             print(f"Training TD(λ) agent ({args.td_train} self-play games on size {args.size} board, λ={args.td_lambda})...")
-            td_lam = TDLambdaAgent(board_size=args.size, hidden_size=128, lr=0.01, lam=args.td_lambda, epsilon=0.1)
+            td_lam = TDLambdaAgent(board_size=args.size, hidden_size=args.td_hidden, lr=0.01, lam=args.td_lambda, epsilon=0.1)
             td_lam.train(num_games=args.td_train, board_size=args.size)
             save_path = args.td_lambda_model or os.path.join(_logic_dir, f"td_lambda_model_s{args.size}.pkl")
             td_lam.save(save_path)
