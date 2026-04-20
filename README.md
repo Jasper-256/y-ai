@@ -13,10 +13,21 @@ This project implements:
 - An MCTS (Monte Carlo Tree Search) AI agent using UCB1 selection and random rollouts
 - A TD(0) (Temporal Difference) AI agent with a neural network value function
 - A TD(λ) agent extending TD(0) with eligibility traces for multi-step credit assignment
+- A heuristic baseline agent using 1-ply lookahead and static evaluation
 - A random baseline agent
 - An arena for running tournaments between agents and recording win rates
 - A Flask API that serves the live game state
 - A React frontend that visualizes games in real-time with a matchup picker to watch different agents play each other
+
+## Agents
+
+Each agent lives in `logic/` and exposes a `choose_move(game)` method.
+
+- **Random** (`random_agent.py`) — picks a uniformly random legal move. A trivial baseline.
+- **Heuristic** (`heuristic_agent.py`) — non-learning 1-ply lookahead that scores each successor by how many of the triangle's three sides its best connected group touches (primary), stone count, and adjacent empty cells (tiebreakers).
+- **MCTS** (`mcts.pyx`) — Monte Carlo Tree Search with UCB1 selection (c=1.41) and uniform-random rollouts, budgeted by iterations per move (default 1000, `--mcts-iters`). Implemented in Cython for speed.
+- **TD(0)** (`td_agent.py`) — small MLP value function `V(s) ∈ [0, 1]` trained via self-play TD(0) updates; picks moves with 1-ply lookahead, choosing the child that minimizes the opponent's predicted win probability.
+- **TD(λ)** (`td_lambda_agent.py`) — same network and selection rule as TD(0), but uses eligibility traces so a single TD error propagates credit back across many prior states (`--td-lambda`, default 0.7).
 
 ## Setup
 
@@ -86,25 +97,4 @@ python arena.py --agents td td_lambda --td-hidden 256 --td-retrain
 
 # Load a specific TD model
 python arena.py --td-model path/to/model.pkl
-```
-
-## Project Structure
-
-```
-logic/
-  board.pyx         # Board representation, adjacency, win detection (BFS) — Cython
-  game.pyx          # Game state: turn tracking, move application, serialization — Cython
-  mcts.pyx          # MCTS agent: UCB1 selection, expansion, random rollout — Cython
-  td_agent.py       # TD(0) agent: MLP value function, self-play training
-  td_lambda_agent.py # TD(λ) agent: TD(0) + eligibility traces for multi-step updates
-  random_agent.py   # Random baseline agent
-  arena.py          # Tournament runner: round-robin matchups with win rate stats
-  self_play.py      # Thread-safe play loop with configurable agents
-  server.py         # Flask API: GET /state, POST /set_agents
-  requirements.txt  # Python dependencies
-
-web_view/           # Vite + React app
-  src/
-    App.jsx         # Polls /state, agent matchup picker
-    Board.jsx       # SVG triangular hex board renderer
 ```
