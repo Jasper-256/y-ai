@@ -9,6 +9,7 @@ from mcts import MCTSAgent
 from random_agent import RandomAgent
 from td_agent import TDAgent
 from td_lambda_agent import TDLambdaAgent
+from td_cnn_agent import TDCNNAgent
 
 BOARD_SIZE = 7
 MOVE_DELAY = 0.3  # seconds between moves for watchability
@@ -20,6 +21,7 @@ AGENT_REGISTRY = {
     "random": lambda: RandomAgent(),
     "td": lambda: _load_td_agent(),
     "td_lambda": lambda: _load_td_lambda_agent(),
+    "td_cnn": lambda: _load_td_cnn_agent(),
 }
 
 AGENT_LABELS = {
@@ -27,6 +29,7 @@ AGENT_LABELS = {
     "random": "Random",
     "td": "TD(0)",
     "td_lambda": "TD(λ)",
+    "td_cnn": "TD-CNN",
 }
 
 
@@ -48,6 +51,17 @@ def _load_td_lambda_agent():
         return TDLambdaAgent.load(model_path)
     print(f"No TD(λ) model found at {model_path}, training one...")
     agent = TDLambdaAgent(board_size=BOARD_SIZE, hidden_size=128, lr=0.01, lam=0.7, epsilon=0.1)
+    agent.train(num_games=2000, board_size=BOARD_SIZE)
+    agent.save(model_path)
+    return agent
+
+
+def _load_td_cnn_agent():
+    model_path = os.path.join(os.path.dirname(__file__), f"td_cnn_model_s{BOARD_SIZE}.pkl")
+    if os.path.exists(model_path):
+        return TDCNNAgent.load(model_path)
+    print(f"No TD-CNN model found at {model_path}, training one...")
+    agent = TDCNNAgent(board_size=BOARD_SIZE, lr=0.005, epsilon=0.1)
     agent.train(num_games=2000, board_size=BOARD_SIZE)
     agent.save(model_path)
     return agent

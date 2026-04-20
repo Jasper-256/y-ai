@@ -51,6 +51,7 @@ from random_agent import RandomAgent
 from heuristic_agent import HeuristicAgent
 from td_agent import TDAgent
 from td_lambda_agent import TDLambdaAgent
+from td_cnn_agent import TDCNNAgent
 
 
 def play_game(agent1, agent2, board_size=7):
@@ -210,9 +211,11 @@ def main():
                         help="Lambda value for the TD(λ) agent (default: 0.7)")
     parser.add_argument("--td-lambda-model", type=str, default=None,
                         help="Path to a saved TD(λ) model (skip training)")
+    parser.add_argument("--td-cnn-model", type=str, default=None,
+                        help="Path to a saved TD-CNN model (skip training)")
     parser.add_argument("--agents", type=str, nargs="+",
-                        default=["random", "td", "td_lambda", "mcts"],
-                        help="Which agents to include: random, heuristic, td, td_lambda, mcts (default: all)")
+                        default=["random", "td", "td_lambda", "td_cnn", "mcts"],
+                        help="Which agents to include: random, heuristic, td, td_lambda, td_cnn, mcts (default: all)")
     parser.add_argument("--output", type=str, default=None,
                         help="Also copy arena output to this file (still shown on terminal)")
     args = parser.parse_args()
@@ -259,6 +262,19 @@ def main():
                 save_path = args.td_lambda_model or os.path.join(_logic_dir, f"td_lambda_model_s{args.size}.pkl")
                 td_lam.save(save_path)
             agents[f"TD(λ={args.td_lambda})"] = td_lam
+
+        if "td_cnn" in args.agents:
+            model_path = args.td_cnn_model or os.path.join(_logic_dir, f"td_cnn_model_s{args.size}.pkl")
+            if not args.td_retrain and os.path.exists(model_path):
+                td_cnn = TDCNNAgent.load(model_path)
+                print(f"Loaded TD-CNN agent from {model_path}", file=out)
+            else:
+                print(f"Training TD-CNN agent ({args.td_train} self-play games on size {args.size} board)...", file=out)
+                td_cnn = TDCNNAgent(board_size=args.size, lr=0.005, epsilon=0.1)
+                td_cnn.train(num_games=args.td_train, board_size=args.size)
+                save_path = args.td_cnn_model or os.path.join(_logic_dir, f"td_cnn_model_s{args.size}.pkl")
+                td_cnn.save(save_path)
+            agents["TD-CNN"] = td_cnn
 
         if "mcts" in args.agents:
             agents[f"MCTS({args.mcts_iters})"] = MCTSAgent(iterations=args.mcts_iters)
