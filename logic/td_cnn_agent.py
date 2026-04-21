@@ -28,6 +28,7 @@ import pickle
 import numpy as np
 from numpy.lib.stride_tricks import as_strided
 
+from training import train
 
 # ── Feature extraction ──────────────────────────────────────────────────────
 
@@ -314,50 +315,16 @@ class TDCNNAgent:
 
     def train(self, num_games=1000, opponent=None, board_size=None):
         """Train via self-play or against a given opponent."""
-        from game import Game
-
-        bs = board_size or self.board_size
-        self.training = True
-        self_play = opponent is None
-
-        for i in range(num_games):
-            game = Game(size=bs)
+        def reset():
             self._prev_cache = None
             self._prev_value = None
+        
+        def update(td_error):
+            grads = self.net.backward(self._prev_cache, td_error)
+            self.net.apply_grads(grads, self.lr)
+        
+        train(self, reset, update, num_games, opponent, board_size)
 
-            if self_play:
-                td_player = 0
-            else:
-                td_player = random.choice([1, 2])
-
-            while not game.is_over():
-                current = game.current_player
-                if self_play or current == td_player:
-                    move = self.choose_move(game)
-                else:
-                    move = opponent.choose_move(game)
-                if move is None:
-                    break
-                game.make_move(move[0], move[1])
-
-            if self._prev_cache is not None:
-                if game.winner == 0:
-                    target = 0.5
-                elif self_play:
-                    target = 0.0
-                else:
-                    target = 1.0 if game.winner == td_player else 0.0
-                td_error = target - self._prev_value
-                grads = self.net.backward(self._prev_cache, td_error)
-                self.net.apply_grads(grads, self.lr)
-
-            self._prev_cache = None
-            self._prev_value = None
-
-            if (i + 1) % 100 == 0:
-                print(f"  Training game {i + 1}/{num_games}")
-
-        self.training = False
         print(f"Training complete ({num_games} games).")
 
     def save(self, path):
