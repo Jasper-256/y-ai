@@ -1,17 +1,31 @@
-"""Unified training loop for all TD agents.
+#!/usr/bin/env python3
+"""Training utilities and standalone training runner.
 
-Optional training checkpoints:
-at each specified game index, run three mini-tournaments: 
-- current vs random
-- current vs heuristic
-- current vs the snapshot of the prior checkpoint
+This module serves two purposes:
+
+Shared training loop
+- `train()` is the unified TD training loop used by every TD agent
+- If checkpoint evaluations are enabled, `train()` also uses
+  `_copy_agent_for_checkpoint()` and `_run_checkpoint_evaluations()`
+
+Standalone `training.py` process
+- Train agents directly from this module
+- Checkpoint evaluations are intended to be used here rather than in `arena.py`
+
+Note: checkpoint evaluations (when enabled) run three mini-tournaments:
+- current vs random agent
+- current vs heuristic agent (current vs previous is handled in `_run_checkpoint_evaluations()`)
+- current vs the previous checkpoint snapshot
 """
+
+# ==============================================================================
+# Shared training loop helpers (used in `arena.py` training flow)
+# ==============================================================================
 
 import copy
 import random
-import sys
 
-# Progress log interval and default spacing when checkpoints=True.
+# Progress log interval and default spacing when checkpoints=True
 _CHECKPOINT_EVERY_N_GAMES = 100
 
 
@@ -46,13 +60,16 @@ def _run_checkpoint_evaluations(model, previous_agent, board_size, iteration, ou
         ]
         for label, agents in matchups:
             print(f"\n{label}", file=out, flush=True)
-            run_tournament(agents, games_per_matchup=games_per_matchup, board_size=bs, out=out)
+            if label == "current vs previous":
+                run_tournament(agents, games_per_matchup=1, board_size=bs, out=out)
+            else:
+                run_tournament(agents, games_per_matchup=games_per_matchup, board_size=bs, out=out)
     finally:
         model.training = was_training
 
 
 def train(model, num_games=1000, opponent=None, board_size=None, checkpoints=None):
-    """Train via self-play or against a given opponent.
+    """Unified training loop for all TD agents.
 
     `checkpoints` may be:
     - None or False: no checkpoint evaluations.
@@ -119,3 +136,48 @@ def train(model, num_games=1000, opponent=None, board_size=None, checkpoints=Non
             previous_agent = _copy_agent_for_checkpoint(model)
 
     model.training = False
+
+# ==============================================================================
+# Standalone `training.py` logic
+# ==============================================================================
+
+import sys
+import os
+import subprocess
+import argparse
+
+# Ensure the logic directory is importable
+_logic_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, _logic_dir)
+
+# Build Cython modules (only when this file is the entrypoint)
+if __name__ == "__main__":
+    print("Compiling Cython modules...")
+    subprocess.check_call(
+        [sys.executable, "setup_cython.py", "build_ext", "--inplace"],
+        cwd=_logic_dir,
+    )
+    print("Cython modules ready.")
+
+from tee import Tee
+from td_agent import TDAgent
+from td_lambda_agent import TDLambdaAgent
+from td_cnn_agent import TDCNNAgent
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Training: train TD agents via self-play or against a given opponent.")
+    parser.add_argument("--num-games", type=int, default=1000,
+                        help="Number of training games.")
+    parser.add_argument("--opponent", type=str, default=None,
+                        help="Opponent agent to train against.")
+    parser.add_argument("--board-size", type=int, default=None,
+                        help="Board size.")
+    parser.add_argument("--checkpoints", type=bool, default=None,
+                        help="Enable checkpoint evaluations.")
+    args = parser.parse_args()
+    train(args.num_games, args.opponent, args.board_size, args.checkpoints)
+
+
+if __name__ == "__main__":
+    main()
