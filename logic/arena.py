@@ -17,22 +17,6 @@ import time
 import argparse
 from collections import defaultdict
 
-
-class Tee:
-    """Mirror ``write``/``flush`` to several text streams (for ``print(..., file=...)``)."""
-
-    def __init__(self, *streams):
-        self._streams = streams
-
-    def write(self, data):
-        for stream in self._streams:
-            stream.write(data)
-
-    def flush(self):
-        for stream in self._streams:
-            stream.flush()
-
-
 # Ensure the logic directory is importable
 _logic_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _logic_dir)
@@ -52,6 +36,7 @@ from heuristic_agent import HeuristicAgent
 from td_agent import TDAgent
 from td_lambda_agent import TDLambdaAgent
 from td_cnn_agent import TDCNNAgent
+from tee import Tee
 
 
 def play_game(agent1, agent2, board_size=7):
@@ -214,10 +199,10 @@ def main():
     parser.add_argument("--td-cnn-model", type=str, default=None,
                         help="Path to a saved TD-CNN model (skip training)")
     parser.add_argument("--agents", type=str, nargs="+",
-                        default=["random", "td", "td_lambda", "td_cnn", "mcts"],
+                        default=["random", "heuristic", "td", "td_lambda", "td_cnn", "mcts"],
                         help="Which agents to include: random, heuristic, td, td_lambda, td_cnn, mcts (default: all)")
     parser.add_argument("--output", type=str, default=None,
-                        help="Also copy arena output to this file (still shown on terminal)")
+                        help="Also write arena output to this file (still shown on terminal)")
     args = parser.parse_args()
 
     out = sys.stdout
