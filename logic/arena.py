@@ -21,13 +21,14 @@ from collections import defaultdict
 _logic_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _logic_dir)
 
-# Build Cython modules
-print("Compiling Cython modules...")
-subprocess.check_call(
-    [sys.executable, "setup_cython.py", "build_ext", "--inplace"],
-    cwd=_logic_dir,
-)
-print("Cython modules ready.")
+# Build Cython modules (only when this file is the entrypoint)
+if __name__ == "__main__":
+    print("Compiling Cython modules...")
+    subprocess.check_call(
+        [sys.executable, "setup_cython.py", "build_ext", "--inplace"],
+        cwd=_logic_dir,
+    )
+    print("Cython modules ready.")
 
 from game import Game
 from mcts import MCTSAgent
