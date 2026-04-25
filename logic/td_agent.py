@@ -205,6 +205,16 @@ class TDAgent:
             self._prev_cache = current_cache
             self._prev_value = current_value
 
+    def reset_episode(self):
+        """Clear TD state at episode boundaries (prev state / traces)."""
+        self._prev_cache = None
+        self._prev_value = None
+
+    def update(self, td_error):
+        """Apply one TD weight step from the training loop's terminal error."""
+        grads = self.net.backward(self._prev_cache, td_error)
+        self.net.apply_grads(grads, self.lr)
+
     def end_game(self, game):
         """Call at game end to do the final TD update."""
         if not self.training or self._prev_cache is None:
@@ -228,7 +238,7 @@ class TDAgent:
         self._prev_cache = None
         self._prev_value = None
 
-    def train(self, num_games=1000, opponent=None, board_size=None):
+    def train(self, num_games=1000, opponent=None, board_size=None, checkpoints=None):
         """Train via self-play or against a given opponent.
 
         Args:
@@ -236,17 +246,9 @@ class TDAgent:
             opponent: Another agent to train against. If None, trains via
                       self-play (plays both sides).
             board_size: Override board size for training games.
+            checkpoints: True or iterable of game indices enables checkpoint evaluations.
         """
-        def reset():
-            self._prev_cache = None
-            self._prev_value = None
-        
-        def update(td_error):
-            grads = self.net.backward(self._prev_cache, td_error)
-            self.net.apply_grads(grads, self.lr)
-        
-        train(self, reset, update, num_games, opponent, board_size)
-
+        train(self, num_games, opponent, board_size, checkpoints)
         print(f"Training complete ({num_games} games).")
 
     def save(self, path):
