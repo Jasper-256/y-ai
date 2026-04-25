@@ -215,29 +215,6 @@ class TDAgent:
         grads = self.net.backward(self._prev_cache, td_error)
         self.net.apply_grads(grads, self.lr)
 
-    def end_game(self, game):
-        """Call at game end to do the final TD update."""
-        if not self.training or self._prev_cache is None:
-            return
-        # Determine outcome from the perspective of the player who made
-        # the last recorded state
-        if game.winner == 0:
-            target = 0.5
-        else:
-            # _prev was recorded for some player; winner is known
-            # _prev_value was from perspective of the player-to-move at that state
-            # If that player won, target=1; else target=0
-            # The last _prev was set before the final move. The player-to-move
-            # at that point was game.current_player (before the winning move
-            # switched things). We don't know exactly, so use the winner info:
-            # If winner == the player whose perspective _prev was from, target=1
-            target = 0.0  # lost
-        td_error = target - self._prev_value
-        grads = self.net.backward(self._prev_cache, td_error)
-        self.net.apply_grads(grads, self.lr)
-        self._prev_cache = None
-        self._prev_value = None
-
     def train(self, num_games=1000, opponent=None, board_size=None, checkpoints=None):
         """Train via self-play or against a given opponent.
 

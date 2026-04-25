@@ -309,20 +309,6 @@ class TDCNNAgent:
         grads = self.net.backward(self._prev_cache, td_error)
         self.net.apply_grads(grads, self.lr)
 
-    def end_game(self, game):
-        """Call at game end to do the final TD update."""
-        if not self.training or self._prev_cache is None:
-            return
-        if game.winner == 0:
-            target = 0.5
-        else:
-            target = 0.0
-        td_error = target - self._prev_value
-        grads = self.net.backward(self._prev_cache, td_error)
-        self.net.apply_grads(grads, self.lr)
-        self._prev_cache = None
-        self._prev_value = None
-
     def train(self, num_games=1000, opponent=None, board_size=None, checkpoints=None):
         """Train via self-play or against a given opponent."""
         train(self, num_games, opponent, board_size, checkpoints)
