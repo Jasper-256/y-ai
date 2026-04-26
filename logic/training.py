@@ -15,6 +15,7 @@ Standalone `training.py` process
 Usage:
     python training.py                                   # default usage
     python training.py --board-size 9 --hidden-size 256  # custom settings
+    python training.py --save models/td_model_s7         # specify save path (.pkl optional)
     python training.py --output td_out.txt               # tee output to file
 
 Note: checkpoint evaluations (when enabled) run three mini-tournaments:
@@ -186,6 +187,8 @@ def main():
                         help="Lambda for the TD(λ) agent.")
     parser.add_argument("--checkpoints", type=bool, default=True,
                         help="Enable checkpoint evaluations (enabled by default).")
+    parser.add_argument("--save", type=str, default=None,
+                        help="Model save path. Relative paths are resolved from the logic directory; .pkl is optional.")
     parser.add_argument("--output", type=str, default=None,
                         help="Also write arena output to this file (still shown on terminal)")
     args = parser.parse_args()
@@ -200,6 +203,7 @@ def main():
         out = Tee(sys.stdout, out_f)
     
     try:
+        # Initialize the agent
         model = None
         if args.agent == "td":
             model = TDAgent(board_size=args.board_size, hidden_size=args.hidden_size)
@@ -211,11 +215,24 @@ def main():
             print(f"Invalid agent: {args.agent}", file=out)
             sys.exit(1)
         
+        # Train the agent
         print(f"Training {args.agent} agent ({args.num_games} games)...", file=out)
         train(model, num_games=args.num_games, opponent=args.opponent, board_size=args.board_size, checkpoints=args.checkpoints, out=out)
-        save_dir = os.path.join(_logic_dir, "models")
-        os.makedirs(save_dir, exist_ok=True)
-        save_path = os.path.join(save_dir, f"{args.agent}_model_s{args.board_size}.pkl")
+        print(f"Training complete ({args.num_games} games).", file=out)
+
+        # Save the model
+        default_save_path = os.path.join("models", f"{args.agent}_model_s{args.board_size}.pkl")
+        requested_save_path = args.save or default_save_path
+
+        save_path = requested_save_path
+        if not os.path.isabs(save_path):
+            save_path = os.path.join(_logic_dir, save_path)
+        if not save_path.lower().endswith(".pkl"):
+            save_path = f"{save_path}.pkl"
+
+        save_dir = os.path.dirname(save_path)
+        if save_dir:
+            os.makedirs(save_dir, exist_ok=True)
         model.save(save_path)
         print(f"Model saved to {save_path}", file=out)
     finally:
