@@ -4,7 +4,7 @@
 Usage:
     python arena.py                          # default matchups
     python arena.py --games 200 --size 5     # custom settings
-    python arena.py --output results.txt     # tee report to terminal and file
+    python arena.py --output arena_out.txt   # tee report to terminal and file
 
 The arena plays N games for each ordered pair (agent_as_P1, agent_as_P2),
 so each pair plays 2*N games total (N with each side).
@@ -209,7 +209,10 @@ def main():
     out = sys.stdout
     out_f = None
     if args.output:
-        out_f = open(args.output, "w", encoding="utf-8")
+        output_dir = os.path.join(_logic_dir, "output")
+        os.makedirs(output_dir, exist_ok=True)
+        output_path = os.path.join(output_dir, args.output)
+        out_f = open(output_path, "w", encoding="utf-8")
         out = Tee(sys.stdout, out_f)
 
     try:
@@ -225,7 +228,10 @@ def main():
 
         if "td" in args.agents:
             model_path = args.td_model or os.path.join(_logic_dir, f"td_model_s{args.size}.pkl")
-            if not args.td_retrain and os.path.exists(model_path):
+            model_path_alt = os.path.join(_logic_dir, "models", f"td_model_s{args.size}.pkl")
+            if not args.td_retrain and (os.path.exists(model_path) or os.path.exists(model_path_alt)):
+                if not os.path.exists(model_path):
+                    model_path = model_path_alt
                 td = TDAgent.load(model_path)
                 print(f"Loaded TD agent from {model_path}", file=out)
             else:
@@ -238,7 +244,10 @@ def main():
 
         if "td_lambda" in args.agents:
             model_path = args.td_lambda_model or os.path.join(_logic_dir, f"td_lambda_model_s{args.size}.pkl")
-            if not args.td_retrain and os.path.exists(model_path):
+            model_path_alt = os.path.join(_logic_dir, "models", f"td_lambda_model_s{args.size}.pkl")
+            if not args.td_retrain and (os.path.exists(model_path) or os.path.exists(model_path_alt)):
+                if not os.path.exists(model_path):
+                    model_path = model_path_alt
                 td_lam = TDLambdaAgent.load(model_path)
                 print(f"Loaded TD(λ) agent from {model_path}", file=out)
             else:
@@ -251,7 +260,10 @@ def main():
 
         if "td_cnn" in args.agents:
             model_path = args.td_cnn_model or os.path.join(_logic_dir, f"td_cnn_model_s{args.size}.pkl")
-            if not args.td_retrain and os.path.exists(model_path):
+            model_path_alt = os.path.join(_logic_dir, "models", f"td_cnn_model_s{args.size}.pkl")
+            if not args.td_retrain and (os.path.exists(model_path) or os.path.exists(model_path_alt)):
+                if not os.path.exists(model_path):
+                    model_path = model_path_alt
                 td_cnn = TDCNNAgent.load(model_path)
                 print(f"Loaded TD-CNN agent from {model_path}", file=out)
             else:
