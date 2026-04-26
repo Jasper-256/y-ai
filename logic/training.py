@@ -12,6 +12,11 @@ Standalone `training.py` process
 - Train agents directly from this module
 - Checkpoint evaluations are intended to be used here rather than in `arena.py`
 
+Usage:
+    python training.py                                   # default usage
+    python training.py --board-size 9 --hidden-size 256  # custom settings
+    python training.py --output td_out.txt               # tee output to file
+
 Note: checkpoint evaluations (when enabled) run three mini-tournaments:
 - current vs random agent
 - current vs heuristic agent (current vs previous is handled in `_run_checkpoint_evaluations()`)
@@ -22,6 +27,7 @@ Note: checkpoint evaluations (when enabled) run three mini-tournaments:
 # Shared training loop helpers (used in `arena.py` training flow)
 # ==============================================================================
 
+import sys
 import copy
 import random
 
@@ -68,7 +74,7 @@ def _run_checkpoint_evaluations(model, previous_agent, board_size, iteration, ou
         model.training = was_training
 
 
-def train(model, num_games=1000, opponent=None, board_size=None, checkpoints=None):
+def train(model, num_games=1000, opponent=None, board_size=None, checkpoints=None, out=sys.stdout):
     """Unified training loop for all TD agents.
 
     `checkpoints` may be:
@@ -129,10 +135,10 @@ def train(model, num_games=1000, opponent=None, board_size=None, checkpoints=Non
         model.reset_episode()
 
         if (i + 1) % _CHECKPOINT_EVERY_N_GAMES == 0:
-            print(f"  Training game {i + 1}/{num_games}")
+            print(f"  Training game {i + 1}/{num_games}", file=out, flush=True)
 
         if checkpoint_set is not None and (i + 1) in checkpoint_set:
-            _run_checkpoint_evaluations(model, previous_agent, board_size, i + 1)
+            _run_checkpoint_evaluations(model, previous_agent, board_size, i + 1, out)
             previous_agent = _copy_agent_for_checkpoint(model)
 
     model.training = False
@@ -141,7 +147,6 @@ def train(model, num_games=1000, opponent=None, board_size=None, checkpoints=Non
 # Standalone `training.py` logic
 # ==============================================================================
 
-import sys
 import os
 import subprocess
 import argparse
@@ -167,16 +172,55 @@ from td_cnn_agent import TDCNNAgent
 
 def main():
     parser = argparse.ArgumentParser(description="Training: train TD agents via self-play or against a given opponent.")
-    parser.add_argument("--num-games", type=int, default=1000,
-                        help="Number of training games.")
+    parser.add_argument("--agent", type=str, default="td",
+                        help="Agent to train. Options: td, td_lambda, td_cnn.")
     parser.add_argument("--opponent", type=str, default=None,
                         help="Opponent agent to train against.")
-    parser.add_argument("--board-size", type=int, default=None,
+    parser.add_argument("--board-size", type=int, default=7,
                         help="Board size.")
-    parser.add_argument("--checkpoints", type=bool, default=None,
-                        help="Enable checkpoint evaluations.")
+    parser.add_argument("--num-games", type=int, default=2000,
+                        help="Number of training games.")
+    parser.add_argument("--hidden-size", type=int, default=128,
+                        help="Hidden layer size for the agent.")
+    parser.add_argument("--td-lambda", type=float, default=0.7,
+                        help="Lambda for the TD(λ) agent.")
+    parser.add_argument("--checkpoints", type=bool, default=True,
+                        help="Enable checkpoint evaluations (enabled by default).")
+    parser.add_argument("--output", type=str, default=None,
+                        help="Also write arena output to this file (still shown on terminal)")
     args = parser.parse_args()
-    train(args.num_games, args.opponent, args.board_size, args.checkpoints)
+
+    out = sys.stdout
+    out_f = None
+    if args.output:
+        output_dir = os.path.join(_logic_dir, "output")
+        os.makedirs(output_dir, exist_ok=True)
+        output_path = os.path.join(output_dir, args.output)
+        out_f = open(output_path, "w", encoding="utf-8")
+        out = Tee(sys.stdout, out_f)
+    
+    try:
+        model = None
+        if args.agent == "td":
+            model = TDAgent(board_size=args.board_size, hidden_size=args.hidden_size)
+        elif args.agent == "td_lambda":
+            model = TDLambdaAgent(board_size=args.board_size, hidden_size=args.hidden_size, lam=args.td_lambda)
+        elif args.agent == "td_cnn":
+            model = TDCNNAgent(board_size=args.board_size)
+        else:
+            print(f"Invalid agent: {args.agent}", file=out)
+            sys.exit(1)
+        
+        print(f"Training {args.agent} agent ({args.num_games} games)...", file=out)
+        train(model, num_games=args.num_games, opponent=args.opponent, board_size=args.board_size, checkpoints=args.checkpoints, out=out)
+        save_dir = os.path.join(_logic_dir, "models")
+        os.makedirs(save_dir, exist_ok=True)
+        save_path = os.path.join(save_dir, f"{args.agent}_model_s{args.board_size}.pkl")
+        model.save(save_path)
+        print(f"Model saved to {save_path}", file=out)
+    finally:
+        if out_f:
+            out_f.close()
 
 
 if __name__ == "__main__":
