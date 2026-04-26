@@ -28,7 +28,6 @@ import pickle
 import numpy as np
 from numpy.lib.stride_tricks import as_strided
 
-
 # ── Feature extraction ──────────────────────────────────────────────────────
 
 N_CHANNELS = 4  # exists, mine, opp, empty
@@ -298,66 +297,20 @@ class TDCNNAgent:
             self._prev_cache = current_cache
             self._prev_value = current_value
 
-    def end_game(self, game):
-        """Call at game end to do the final TD update."""
-        if not self.training or self._prev_cache is None:
-            return
-        if game.winner == 0:
-            target = 0.5
-        else:
-            target = 0.0
-        td_error = target - self._prev_value
-        grads = self.net.backward(self._prev_cache, td_error)
-        self.net.apply_grads(grads, self.lr)
+    def reset_episode(self):
+        """Clear TD state at episode boundaries (prev state)."""
         self._prev_cache = None
         self._prev_value = None
 
-    def train(self, num_games=1000, opponent=None, board_size=None):
+    def update(self, td_error):
+        """Apply one TD weight step from the training loop's terminal error."""
+        grads = self.net.backward(self._prev_cache, td_error)
+        self.net.apply_grads(grads, self.lr)
+
+    def train(self, num_games=1000, opponent=None, board_size=None, checkpoints=None):
         """Train via self-play or against a given opponent."""
-        from game import Game
-
-        bs = board_size or self.board_size
-        self.training = True
-        self_play = opponent is None
-
-        for i in range(num_games):
-            game = Game(size=bs)
-            self._prev_cache = None
-            self._prev_value = None
-
-            if self_play:
-                td_player = 0
-            else:
-                td_player = random.choice([1, 2])
-
-            while not game.is_over():
-                current = game.current_player
-                if self_play or current == td_player:
-                    move = self.choose_move(game)
-                else:
-                    move = opponent.choose_move(game)
-                if move is None:
-                    break
-                game.make_move(move[0], move[1])
-
-            if self._prev_cache is not None:
-                if game.winner == 0:
-                    target = 0.5
-                elif self_play:
-                    target = 0.0
-                else:
-                    target = 1.0 if game.winner == td_player else 0.0
-                td_error = target - self._prev_value
-                grads = self.net.backward(self._prev_cache, td_error)
-                self.net.apply_grads(grads, self.lr)
-
-            self._prev_cache = None
-            self._prev_value = None
-
-            if (i + 1) % 100 == 0:
-                print(f"  Training game {i + 1}/{num_games}")
-
-        self.training = False
+        from training import train
+        train(self, num_games, opponent, board_size, checkpoints)
         print(f"Training complete ({num_games} games).")
 
     def save(self, path):

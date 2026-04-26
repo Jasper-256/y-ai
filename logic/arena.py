@@ -4,7 +4,7 @@
 Usage:
     python arena.py                          # default matchups
     python arena.py --games 200 --size 5     # custom settings
-    python arena.py --output results.txt     # tee report to terminal and file
+    python arena.py --output arena_out.txt   # tee report to terminal and file
 
 The arena plays N games for each ordered pair (agent_as_P1, agent_as_P2),
 so each pair plays 2*N games total (N with each side).
@@ -17,33 +17,18 @@ import time
 import argparse
 from collections import defaultdict
 
-
-class Tee:
-    """Mirror ``write``/``flush`` to several text streams (for ``print(..., file=...)``)."""
-
-    def __init__(self, *streams):
-        self._streams = streams
-
-    def write(self, data):
-        for stream in self._streams:
-            stream.write(data)
-
-    def flush(self):
-        for stream in self._streams:
-            stream.flush()
-
-
 # Ensure the logic directory is importable
 _logic_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _logic_dir)
 
-# Build Cython modules
-print("Compiling Cython modules...")
-subprocess.check_call(
-    [sys.executable, "setup_cython.py", "build_ext", "--inplace"],
-    cwd=_logic_dir,
-)
-print("Cython modules ready.")
+# Build Cython modules (only when this file is the entrypoint)
+if __name__ == "__main__":
+    print("Compiling Cython modules...")
+    subprocess.check_call(
+        [sys.executable, "setup_cython.py", "build_ext", "--inplace"],
+        cwd=_logic_dir,
+    )
+    print("Cython modules ready.")
 
 from game import Game
 from mcts import MCTSAgent
@@ -52,6 +37,7 @@ from heuristic_agent import HeuristicAgent
 from td_agent import TDAgent
 from td_lambda_agent import TDLambdaAgent
 from td_cnn_agent import TDCNNAgent
+from tee import Tee
 
 
 def play_game(agent1, agent2, board_size=7):
@@ -214,16 +200,19 @@ def main():
     parser.add_argument("--td-cnn-model", type=str, default=None,
                         help="Path to a saved TD-CNN model (skip training)")
     parser.add_argument("--agents", type=str, nargs="+",
-                        default=["random", "td", "td_lambda", "td_cnn", "mcts"],
+                        default=["random", "heuristic", "td", "td_lambda", "td_cnn", "mcts"],
                         help="Which agents to include: random, heuristic, td, td_lambda, td_cnn, mcts (default: all)")
     parser.add_argument("--output", type=str, default=None,
-                        help="Also copy arena output to this file (still shown on terminal)")
+                        help="Also write arena output to this file (still shown on terminal)")
     args = parser.parse_args()
 
     out = sys.stdout
     out_f = None
     if args.output:
-        out_f = open(args.output, "w", encoding="utf-8")
+        output_dir = os.path.join(_logic_dir, "output")
+        os.makedirs(output_dir, exist_ok=True)
+        output_path = os.path.join(output_dir, args.output)
+        out_f = open(output_path, "w", encoding="utf-8")
         out = Tee(sys.stdout, out_f)
 
     try:
@@ -239,7 +228,10 @@ def main():
 
         if "td" in args.agents:
             model_path = args.td_model or os.path.join(_logic_dir, f"td_model_s{args.size}.pkl")
-            if not args.td_retrain and os.path.exists(model_path):
+            model_path_alt = os.path.join(_logic_dir, "models", f"td_model_s{args.size}.pkl")
+            if not args.td_retrain and (os.path.exists(model_path) or os.path.exists(model_path_alt)):
+                if not os.path.exists(model_path):
+                    model_path = model_path_alt
                 td = TDAgent.load(model_path)
                 print(f"Loaded TD agent from {model_path}", file=out)
             else:
@@ -252,7 +244,10 @@ def main():
 
         if "td_lambda" in args.agents:
             model_path = args.td_lambda_model or os.path.join(_logic_dir, f"td_lambda_model_s{args.size}.pkl")
-            if not args.td_retrain and os.path.exists(model_path):
+            model_path_alt = os.path.join(_logic_dir, "models", f"td_lambda_model_s{args.size}.pkl")
+            if not args.td_retrain and (os.path.exists(model_path) or os.path.exists(model_path_alt)):
+                if not os.path.exists(model_path):
+                    model_path = model_path_alt
                 td_lam = TDLambdaAgent.load(model_path)
                 print(f"Loaded TD(λ) agent from {model_path}", file=out)
             else:
@@ -265,7 +260,10 @@ def main():
 
         if "td_cnn" in args.agents:
             model_path = args.td_cnn_model or os.path.join(_logic_dir, f"td_cnn_model_s{args.size}.pkl")
-            if not args.td_retrain and os.path.exists(model_path):
+            model_path_alt = os.path.join(_logic_dir, "models", f"td_cnn_model_s{args.size}.pkl")
+            if not args.td_retrain and (os.path.exists(model_path) or os.path.exists(model_path_alt)):
+                if not os.path.exists(model_path):
+                    model_path = model_path_alt
                 td_cnn = TDCNNAgent.load(model_path)
                 print(f"Loaded TD-CNN agent from {model_path}", file=out)
             else:

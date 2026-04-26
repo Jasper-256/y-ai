@@ -21,11 +21,9 @@ With γ=1 and reward=0 for non-terminal states this simplifies to:
 λ=0 recovers TD(0); λ=1 approximates Monte-Carlo.
 """
 
-import os
 import random
 import pickle
 import numpy as np
-
 
 # ── Feature extraction ──────────────────────────────────────────────────────
 
@@ -241,23 +239,19 @@ class TDLambdaAgent:
             self._prev_cache = current_cache
             self._prev_value = current_value
 
-    def end_game(self, game):
-        """Call at game end to do the final TD update."""
-        if not self.training or self._prev_cache is None:
-            return
-        if game.winner == 0:
-            target = 0.5
-        else:
-            target = 0.0  # lost
-        td_error = target - self._prev_value
-        grads = self.net.backward(self._prev_cache, 1.0)
-        self.net.update_traces(grads, self.lam)
-        self.net.apply_td_update(td_error, self.lr)
+    def reset_episode(self):
+        """Clear TD state at episode boundaries (prev state / traces)."""
         self._prev_cache = None
         self._prev_value = None
         self.net.reset_traces()
 
-    def train(self, num_games=1000, opponent=None, board_size=None):
+    def update(self, td_error):
+        """Apply one TD weight step from the training loop's terminal error."""
+        grads = self.net.backward(self._prev_cache, 1.0)
+        self.net.update_traces(grads, self.lam)
+        self.net.apply_td_update(td_error, self.lr)
+
+    def train(self, num_games=1000, opponent=None, board_size=None, checkpoints=None):
         """Train via self-play or against a given opponent.
 
         Args:
@@ -265,56 +259,10 @@ class TDLambdaAgent:
             opponent: Another agent to train against. If None, trains via
                       self-play (plays both sides).
             board_size: Override board size for training games.
+            checkpoints: True or iterable of game indices enables checkpoint evaluations.
         """
-        from game import Game
-
-        bs = board_size or self.board_size
-        self.training = True
-        self_play = opponent is None
-
-        for i in range(num_games):
-            game = Game(size=bs)
-            self._prev_cache = None
-            self._prev_value = None
-            self.net.reset_traces()
-
-            # Randomly assign sides
-            if self_play:
-                td_player = 0  # plays both sides
-            else:
-                td_player = random.choice([1, 2])
-
-            while not game.is_over():
-                current = game.current_player
-                if self_play or current == td_player:
-                    move = self.choose_move(game)
-                else:
-                    move = opponent.choose_move(game)
-                if move is None:
-                    break
-                game.make_move(move[0], move[1])
-
-            # Final update
-            if self._prev_cache is not None:
-                if game.winner == 0:
-                    target = 0.5
-                elif self_play:
-                    target = 0.0  # last prev was the loser's perspective
-                else:
-                    target = 1.0 if game.winner == td_player else 0.0
-                td_error = target - self._prev_value
-                grads = self.net.backward(self._prev_cache, 1.0)
-                self.net.update_traces(grads, self.lam)
-                self.net.apply_td_update(td_error, self.lr)
-
-            self._prev_cache = None
-            self._prev_value = None
-            self.net.reset_traces()
-
-            if (i + 1) % 100 == 0:
-                print(f"  Training game {i + 1}/{num_games}")
-
-        self.training = False
+        from training import train
+        train(self, num_games, opponent, board_size, checkpoints)
         print(f"Training complete ({num_games} games, λ={self.lam}).")
 
     def save(self, path):
