@@ -21,12 +21,9 @@ With γ=1 and reward=0 for non-terminal states this simplifies to:
 λ=0 recovers TD(0); λ=1 approximates Monte-Carlo.
 """
 
-import os
 import random
 import pickle
 import numpy as np
-
-from training import train
 
 # ── Feature extraction ──────────────────────────────────────────────────────
 
@@ -264,6 +261,7 @@ class TDLambdaAgent:
             board_size: Override board size for training games.
             checkpoints: True or iterable of game indices enables checkpoint evaluations.
         """
+        from training import train
         train(self, num_games, opponent, board_size, checkpoints)
         print(f"Training complete ({num_games} games, λ={self.lam}).")
 

@@ -28,8 +28,6 @@ import pickle
 import numpy as np
 from numpy.lib.stride_tricks import as_strided
 
-from training import train
-
 # ── Feature extraction ──────────────────────────────────────────────────────
 
 N_CHANNELS = 4  # exists, mine, opp, empty
@@ -311,6 +309,7 @@ class TDCNNAgent:
 
     def train(self, num_games=1000, opponent=None, board_size=None, checkpoints=None):
         """Train via self-play or against a given opponent."""
+        from training import train
         train(self, num_games, opponent, board_size, checkpoints)
         print(f"Training complete ({num_games} games).")
 
