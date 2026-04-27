@@ -15,7 +15,9 @@ import os
 import subprocess
 import time
 import argparse
+import math
 from collections import defaultdict
+import numpy as np
 
 # Ensure the logic directory is importable
 _logic_dir = os.path.dirname(os.path.abspath(__file__))
@@ -175,6 +177,102 @@ def print_summary(agents, results, games_per_matchup, out=sys.stdout):
         total = wins[1] + wins[2]
         p1_rate = wins[1] / total if total > 0 else 0.0
         print(f"{n1} vs {n2:<18} {wins[1]:>8} {wins[2]:>8} {p1_rate:>7.1%}", file=out)
+
+    bt_ratings = fit_bradley_terry_elo(names, results)
+    if bt_ratings:
+        print("\n" + "=" * 60, file=out)
+        print("BRADLEY-TERRY ELO RATINGS", file=out)
+        print("=" * 60, file=out)
+        print(f"{'Agent':<20} {'Rating':>10}", file=out)
+        print("-" * 32, file=out)
+        for name, rating, se in sorted(bt_ratings, key=lambda x: -x[1]):
+            print(f"{name:<20} {int(round(rating)):>7d} ± {int(round(se)):<6d}", file=out)
+
+
+def fit_bradley_terry_elo(names, results, max_iter=100, tol=1e-8):
+    """Fit Bradley-Terry strengths, then convert to Elo-style ratings with SE."""
+    n = len(names)
+    if n < 2:
+        return []
+
+    idx = {name: i for i, name in enumerate(names)}
+    wins = np.zeros((n, n), dtype=float)
+
+    # Aggregate total wins i->j across both role orderings.
+    for (n1, n2), w in results.items():
+        i = idx[n1]
+        j = idx[n2]
+        wins[i, j] += w[1]
+        wins[j, i] += w[2]
+
+    # Estimate x for first n-1 agents, last agent fixed at 0.
+    x = np.zeros(n - 1, dtype=float)
+
+    for _ in range(max_iter):
+        a = np.zeros(n, dtype=float)
+        a[:-1] = x
+
+        grad = np.zeros(n - 1, dtype=float)
+        info = np.zeros((n - 1, n - 1), dtype=float)
+
+        for i in range(n):
+            for j in range(i + 1, n):
+                m = wins[i, j] + wins[j, i]
+                if m <= 0:
+                    continue
+
+                # p(i beats j) under Bradley-Terry
+                diff = float(np.clip(a[i] - a[j], -30.0, 30.0))
+                p = 1.0 / (1.0 + math.exp(-diff))
+                v = m * p * (1.0 - p)
+
+                if i < n - 1:
+                    grad[i] += wins[i, j] - m * p
+                    info[i, i] += v
+                if j < n - 1:
+                    grad[j] += wins[j, i] - m * (1.0 - p)
+                    info[j, j] += v
+                if i < n - 1 and j < n - 1:
+                    info[i, j] -= v
+                    info[j, i] -= v
+
+        # Small ridge for numerical stability in nearly-disconnected tournaments.
+        info += np.eye(n - 1) * 1e-9
+
+        try:
+            step = np.linalg.solve(info, grad)
+        except np.linalg.LinAlgError:
+            step = np.linalg.pinv(info) @ grad
+
+        x_next = x + step
+        if np.linalg.norm(step, ord=np.inf) < tol:
+            x = x_next
+            break
+        x = x_next
+
+    a = np.zeros(n, dtype=float)
+    a[:-1] = x
+
+    # Center strengths so average rating is at the Elo baseline.
+    centered = a - np.mean(a)
+
+    # Covariance on centered strengths via Jacobian transform.
+    try:
+        cov_x = np.linalg.inv(info)
+    except np.linalg.LinAlgError:
+        cov_x = np.linalg.pinv(info)
+
+    jmat = np.full((n, n - 1), -1.0 / n, dtype=float)
+    for i in range(n - 1):
+        jmat[i, i] += 1.0
+    cov_centered = jmat @ cov_x @ jmat.T
+    se_strength = np.sqrt(np.clip(np.diag(cov_centered), 0.0, None))
+
+    elo_scale = 400.0 / math.log(10.0)
+    ratings = 1500.0 + elo_scale * centered
+    se_elo = elo_scale * se_strength
+
+    return [(name, float(ratings[i]), float(se_elo[i])) for i, name in enumerate(names)]
 
 
 def main():
