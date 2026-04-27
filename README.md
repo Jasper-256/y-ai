@@ -103,3 +103,28 @@ python arena.py --agents td td_lambda --td-hidden 256 --td-retrain
 # Load a specific TD model
 python arena.py --td-model path/to/model.pkl
 ```
+
+### Training
+
+Use the standalone training runner in `logic/training.py` to train a TD-family agent outside the arena flow. It includes mid-training evaluation, and saves the model to `logic/models/`.
+
+```bash
+cd logic
+source venv/bin/activate
+
+# Default training run (TD(0), board size 7, 2000 games)
+python training.py
+
+# Train TD(λ) with a custom lambda value and game count
+python training.py --agent td_lambda --td-lambda 0.9 --num-games 5000
+
+# Train TD-CNN on a larger board and save to a custom model path
+python training.py --agent td_cnn --board-size 9 --save models/td_cnn_s9
+
+# Write a copy of training output to logic/output/training_log.txt
+python training.py --output training_log.txt
+```
+
+For quick checkpoint analysis, use `logic/checkpoint_winrate_analysis.ipynb`. The notebook parses a training output log (for example `logic/output/td.txt`), computes win rate statistics, and produces:
+- a combined plot for `current vs random` and `current vs heuristic` showing independent P1/P2 as well as aggregated win rates
+- a four-state checkpoint plot for `current vs previous` (Lost both, Won only as P1, Won only as P2, Won both)
