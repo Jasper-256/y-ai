@@ -10,6 +10,7 @@ from random_agent import RandomAgent
 from td_agent import TDAgent
 from td_lambda_agent import TDLambdaAgent
 from td_cnn_agent import TDCNNAgent
+from pv_mcts_agent import PVMCTSAgent, load_or_train_pv_mcts
 
 BOARD_SIZE = 7
 MOVE_DELAY = 0.3  # seconds between moves for watchability
@@ -18,6 +19,7 @@ GAME_OVER_DELAY = 3
 # Available agent constructors
 AGENT_REGISTRY = {
     "mcts": lambda: MCTSAgent(iterations=5000),
+    "pv_mcts": lambda: _load_pv_mcts_agent(),
     "random": lambda: RandomAgent(),
     "td": lambda: _load_td_agent(),
     "td_lambda": lambda: _load_td_lambda_agent(),
@@ -26,6 +28,7 @@ AGENT_REGISTRY = {
 
 AGENT_LABELS = {
     "mcts": "MCTS (5k iter)",
+    "pv_mcts": "PV-MCTS (400 iter)",
     "random": "Random",
     "td": "TD(0)",
     "td_lambda": "TD(λ)",
@@ -65,6 +68,17 @@ def _load_td_cnn_agent():
     agent.train(num_games=2000, board_size=BOARD_SIZE)
     agent.save(model_path)
     return agent
+
+
+def _load_pv_mcts_agent():
+    net, _ = load_or_train_pv_mcts(
+        board_size=BOARD_SIZE,
+        train_games=200,
+        teacher_iters=2000,
+        hidden_size=192,
+        epochs=80,
+    )
+    return PVMCTSAgent(net=net, iterations=400)
 
 
 _game = Game(size=BOARD_SIZE)

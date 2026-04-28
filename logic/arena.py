@@ -39,6 +39,7 @@ from heuristic_agent import HeuristicAgent
 from td_agent import TDAgent
 from td_lambda_agent import TDLambdaAgent
 from td_cnn_agent import TDCNNAgent
+from pv_mcts_agent import PVMCTSAgent, load_or_train_pv_mcts
 from tee import Tee
 
 
@@ -283,6 +284,24 @@ def main():
                         help="Board size (default: 7)")
     parser.add_argument("--mcts-iters", type=int, default=1000,
                         help="MCTS iterations per move (default: 1000)")
+    parser.add_argument("--pv-mcts-iters", type=int, default=400,
+                        help="PV-MCTS iterations per move (default: 400)")
+    parser.add_argument("--pv-mcts-rollouts", type=int, default=1,
+                        help="Terminal rollouts blended into each PV-MCTS leaf evaluation (default: 1)")
+    parser.add_argument("--pv-mcts-value-weight", type=float, default=0.25,
+                        help="Weight of the value net in PV-MCTS leaf evaluation; the rest is rollout value (default: 0.25)")
+    parser.add_argument("--pv-mcts-model", type=str, default=None,
+                        help="Path to a saved PV-MCTS policy/value model (skip training)")
+    parser.add_argument("--pv-mcts-retrain", action="store_true",
+                        help="Force training a new PV-MCTS policy/value model even if one exists")
+    parser.add_argument("--pv-mcts-train", type=int, default=200,
+                        help="Teacher self-play games for PV-MCTS policy/value training (default: 200)")
+    parser.add_argument("--pv-mcts-teacher-iters", type=int, default=2000,
+                        help="Plain-MCTS teacher iterations for PV-MCTS training (default: 2000)")
+    parser.add_argument("--pv-mcts-hidden", type=int, default=192,
+                        help="Hidden layer size for the PV-MCTS policy/value net (default: 192)")
+    parser.add_argument("--pv-mcts-epochs", type=int, default=80,
+                        help="Training epochs for the PV-MCTS policy/value net (default: 80)")
     parser.add_argument("--td-train", type=int, default=2000,
                         help="Number of self-play games to train the TD agent (default: 2000)")
     parser.add_argument("--td-hidden", type=int, default=128,
@@ -298,8 +317,8 @@ def main():
     parser.add_argument("--td-cnn-model", type=str, default=None,
                         help="Path to a saved TD-CNN model (skip training)")
     parser.add_argument("--agents", type=str, nargs="+",
-                        default=["random", "heuristic", "td", "td_lambda", "td_cnn", "mcts"],
-                        help="Which agents to include: random, heuristic, td, td_lambda, td_cnn, mcts (default: all)")
+                        default=["random", "heuristic", "td", "td_lambda", "td_cnn", "mcts", "pv_mcts"],
+                        help="Which agents to include: random, heuristic, td, td_lambda, td_cnn, mcts, pv_mcts (default: all)")
     parser.add_argument("--output", type=str, default=None,
                         help="Also write arena output to this file (still shown on terminal)")
     args = parser.parse_args()
@@ -375,6 +394,28 @@ def main():
         if "mcts" in args.agents:
             agents[f"MCTS({args.mcts_iters})"] = MCTSAgent(iterations=args.mcts_iters)
             print(f"Loaded MCTS agent ({args.mcts_iters} iterations).", file=out)
+
+        if "pv_mcts" in args.agents:
+            pv_model_path = args.pv_mcts_model
+            if pv_model_path is not None and not os.path.isabs(pv_model_path):
+                pv_model_path = os.path.join(_logic_dir, pv_model_path)
+            pv_net, pv_model_path = load_or_train_pv_mcts(
+                board_size=args.size,
+                model_path=pv_model_path,
+                retrain=args.pv_mcts_retrain,
+                train_games=args.pv_mcts_train,
+                teacher_iters=args.pv_mcts_teacher_iters,
+                hidden_size=args.pv_mcts_hidden,
+                epochs=args.pv_mcts_epochs,
+                out=out,
+            )
+            agents[f"PV-MCTS({args.pv_mcts_iters})"] = PVMCTSAgent(
+                net=pv_net,
+                iterations=args.pv_mcts_iters,
+                rollouts_per_leaf=args.pv_mcts_rollouts,
+                value_weight=args.pv_mcts_value_weight,
+            )
+            print(f"Loaded PV-MCTS agent ({args.pv_mcts_iters} iterations, model={pv_model_path}).", file=out)
 
         if len(agents) < 2:
             print("Need at least 2 agents. Use --agents to specify.", file=out)
