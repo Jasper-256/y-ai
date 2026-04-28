@@ -13,6 +13,7 @@ import os
 import pickle
 import random
 from dataclasses import dataclass
+from collections import deque
 
 import numpy as np
 
@@ -283,16 +284,25 @@ class PVMCTSAgent:
         self.rollout_policy = rollout_policy
 
     def choose_move(self, game):
+        stats = self.analyze(game)
+        if not stats:
+            moves = game.legal_moves()
+            return random.choice(moves) if moves else None
+        best_move, _, _ = max(stats, key=lambda item: (item[1], item[2]))
+        return best_move
+
+    def analyze(self, game):
+        """Return root child stats as ``(move, visits, value_sum)``."""
         moves = game.legal_moves()
         if not moves:
-            return None
+            return []
 
         me = game.current_player
         for move in moves:
             child = game.copy()
             child.make_move(move[0], move[1])
             if child.winner == me:
-                return move
+                return [(move, self.iterations + 1, float(self.iterations + 1))]
 
         root = PVNode(game.copy())
         policy, value = self.net.predict(root.game, temperature=self.policy_temperature)
@@ -321,9 +331,8 @@ class PVMCTSAgent:
             _backpropagate(node, value_player, leaf_value)
 
         if not root.children:
-            return random.choice(moves)
-        best = max(root.children, key=lambda ch: (ch.visits, ch.q_value()))
-        return best.move
+            return []
+        return [(child.move, child.visits, child.value_sum) for child in root.children]
 
     def _rollout_average(self, game, value_player):
         total = 0.0
@@ -549,4 +558,183 @@ def load_or_train_pv_mcts(board_size=7, model_path=None, retrain=False,
     net.save(model_path)
     if out is not None:
         print(f"Saved PV-MCTS policy/value net to {model_path}", file=out)
+    return net, model_path
+
+
+def default_self_play_model_path(board_size):
+    return os.path.join(os.path.dirname(__file__), "models", f"sp_pv_mcts_model_s{board_size}.pkl")
+
+
+def _policy_from_stats(stats, board_size, smoothing=0.02):
+    policy = np.zeros(_num_cells(board_size), dtype=np.float64)
+    if not stats:
+        return policy
+    total_visits = sum(max(0, visits) for _, visits, _ in stats)
+    if total_visits <= 0:
+        prob = 1.0 / len(stats)
+        for move, _, _ in stats:
+            policy[_cell_index(move[0], move[1])] = prob
+        return policy
+    for move, visits, _ in stats:
+        policy[_cell_index(move[0], move[1])] = (
+            (1.0 - smoothing) * visits / total_visits + smoothing / len(stats)
+        )
+    return policy
+
+
+def _sample_move_from_stats(stats, temperature=1.0):
+    if not stats:
+        return None
+    if temperature <= 1e-6:
+        return max(stats, key=lambda item: (item[1], item[2]))[0]
+    visits = np.array([max(0, visits) for _, visits, _ in stats], dtype=np.float64)
+    if np.sum(visits) <= 0:
+        return random.choice(stats)[0]
+    weights = visits ** (1.0 / temperature)
+    total = float(np.sum(weights))
+    if total <= 0.0 or not np.isfinite(total):
+        return random.choice(stats)[0]
+    idx = int(np.random.choice(len(stats), p=weights / total))
+    return stats[idx][0]
+
+
+def generate_self_play_examples(net, board_size=7, num_games=80, search_iters=250,
+                                rollouts_per_leaf=1, value_weight=0.0,
+                                temperature_moves=8, out=None):
+    """Generate policy/value examples from the network's own self-play search."""
+    from game import Game
+
+    examples = []
+    agent = PVMCTSAgent(
+        net=net,
+        iterations=search_iters,
+        rollouts_per_leaf=rollouts_per_leaf,
+        value_weight=value_weight,
+    )
+
+    for game_idx in range(num_games):
+        game = Game(size=board_size)
+        game_examples = []
+        while not game.is_over():
+            stats = agent.analyze(game)
+            if not stats:
+                break
+            move_number = len(game.move_history)
+            temperature = 1.0 if move_number < temperature_moves else 0.25
+            policy = _policy_from_stats(stats, board_size)
+            move = _sample_move_from_stats(stats, temperature=temperature)
+            if move is None:
+                break
+            game_examples.append(
+                TrainingExample(
+                    features=_board_features(game),
+                    policy=policy,
+                    player=game.current_player,
+                )
+            )
+            game.make_move(move[0], move[1])
+
+        for ex in game_examples:
+            ex.winner = game.winner
+            ex.value = 1.0 if game.winner == ex.player else 0.0
+        examples.extend(game_examples)
+
+        if out is not None and (game_idx + 1) % 10 == 0:
+            print(f"  SP-PV-MCTS self-play game {game_idx + 1}/{num_games}", file=out, flush=True)
+
+    return examples
+
+
+def train_self_play_policy_value_net(board_size=7, generations=7, games_per_generation=60,
+                                     search_iters=300, hidden_size=192, epochs=25,
+                                     batch_size=64, lr=0.012, replay_size=5000,
+                                     seed=11, out=None):
+    """Train a policy/value network only from its own self-play search."""
+    rng = np.random.default_rng(seed)
+    random.seed(seed)
+    net = PolicyValueNet(board_size=board_size, hidden_size=hidden_size, seed=seed)
+    replay = deque(maxlen=replay_size)
+
+    for gen in range(generations):
+        if out is not None:
+            print(
+                f"SP-PV-MCTS generation {gen + 1}/{generations}: "
+                f"{games_per_generation} self-play games, search={search_iters}",
+                file=out,
+                flush=True,
+            )
+        new_examples = generate_self_play_examples(
+            net,
+            board_size=board_size,
+            num_games=games_per_generation,
+            search_iters=search_iters,
+            rollouts_per_leaf=1,
+            value_weight=min(0.35, 0.08 * gen),
+            out=out,
+        )
+        replay.extend(new_examples)
+        if not replay:
+            raise RuntimeError("No self-play examples were generated")
+
+        examples = list(replay)
+        xs = np.stack([ex.features for ex in examples])
+        policies = np.stack([ex.policy for ex in examples])
+        values = np.array([ex.value for ex in examples], dtype=np.float64)
+        indices = np.arange(len(examples))
+
+        gen_lr = lr * (0.88 ** gen)
+        for epoch in range(epochs):
+            rng.shuffle(indices)
+            losses = []
+            for start in range(0, len(indices), batch_size):
+                batch = indices[start:start + batch_size]
+                loss = net.train_batch(
+                    xs[batch],
+                    policies[batch],
+                    values[batch],
+                    lr=gen_lr,
+                    value_weight=1.25,
+                )
+                losses.append(loss)
+            if out is not None and ((epoch + 1) % 10 == 0 or epoch == 0):
+                print(
+                    f"  SP-PV-MCTS epoch {epoch + 1}/{epochs}, "
+                    f"loss={np.mean(losses):.4f}, replay={len(replay)}",
+                    file=out,
+                    flush=True,
+                )
+
+    return net
+
+
+def load_or_train_self_play_pv_mcts(board_size=7, model_path=None, retrain=False,
+                                    generations=7, games_per_generation=60,
+                                    search_iters=300, hidden_size=192, epochs=25,
+                                    out=None):
+    model_path = model_path or default_self_play_model_path(board_size)
+    if not retrain and os.path.exists(model_path):
+        if out is not None:
+            print(f"Loaded self-play PV-MCTS net from {model_path}", file=out)
+        return PolicyValueNet.load(model_path), model_path
+
+    if out is not None:
+        print(
+            f"Training self-play PV-MCTS net: {generations} generations, "
+            f"{games_per_generation} games/gen, search={search_iters}, board size={board_size}",
+            file=out,
+            flush=True,
+        )
+    net = train_self_play_policy_value_net(
+        board_size=board_size,
+        generations=generations,
+        games_per_generation=games_per_generation,
+        search_iters=search_iters,
+        hidden_size=hidden_size,
+        epochs=epochs,
+        out=out,
+    )
+    os.makedirs(os.path.dirname(model_path), exist_ok=True)
+    net.save(model_path)
+    if out is not None:
+        print(f"Saved self-play PV-MCTS net to {model_path}", file=out)
     return net, model_path

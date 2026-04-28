@@ -15,6 +15,7 @@ This project implements:
 - A TD(λ) agent extending TD(0) with eligibility traces for multi-step credit assignment
 - A TD-CNN agent that replaces the TD(0) MLP with a convolutional network over a diagonal 2D embedding of the triangular board
 - A PV-MCTS agent that trains policy and value networks from a stronger MCTS teacher, then uses them for PUCT-guided search
+- A self-play PV-MCTS agent that learns from its own search visit counts and final game outcomes
 - A heuristic baseline agent using 1-ply lookahead and static evaluation
 - A random baseline agent
 - An arena for running tournaments between agents and recording win rates
@@ -29,6 +30,7 @@ Each agent lives in `logic/` and exposes a `choose_move(game)` method.
 - **Heuristic** (`heuristic_agent.py`) — non-learning 1-ply lookahead that scores each successor by how many of the triangle's three sides its best connected group touches (primary), stone count, and adjacent empty cells (tiebreakers).
 - **MCTS** (`mcts.pyx`) — Monte Carlo Tree Search with UCB1 selection (c=1.41) and uniform-random rollouts, budgeted by iterations per move (default 1000, `--mcts-iters`). Implemented in Cython for speed.
 - **PV-MCTS** (`pv_mcts_agent.py`) — policy/value-guided MCTS. A NumPy MLP is trained from plain-MCTS teacher games; at play time, policy logits seed PUCT priors and the value head is blended with a terminal rollout at leaf nodes. Use `--pv-mcts-retrain`, `--pv-mcts-train`, `--pv-mcts-teacher-iters`, `--pv-mcts-iters`, and `--pv-mcts-value-weight` to tune it.
+- **SP-PV-MCTS** (`pv_mcts_agent.py`) — the self-play variant. It starts from its own policy/value network, plays games against itself, trains policy on its own root visit distributions, and trains value on final winners. Use `--sp-pv-mcts-retrain`, `--sp-pv-mcts-generations`, `--sp-pv-mcts-games`, `--sp-pv-mcts-search-iters`, and `--sp-pv-mcts-iters` to tune it.
 - **TD(0)** (`td_agent.py`) — small MLP value function `V(s) ∈ [0, 1]` trained via self-play TD(0) updates; picks moves with 1-ply lookahead, choosing the child that minimizes the opponent's predicted win probability.
 - **TD(λ)** (`td_lambda_agent.py`) — same network and selection rule as TD(0), but uses eligibility traces so a single TD error propagates credit back across many prior states (`--td-lambda`, default 0.7).
 - **TD-CNN** (`td_cnn_agent.py`) — TD(0) with a CNN value function. The triangular board is embedded diagonally into an `N × N` grid and fed in as 4 channels (exists mask, mine, opponent, empty) so the network can see the board shape. Three 3×3 conv layers feed a small dense head.
@@ -68,7 +70,7 @@ cd web_view
 npm run dev
 ```
 
-Open http://localhost:5173 to watch agents play. Use the dropdowns to pick which agents play as Red and Blue (MCTS, PV-MCTS, TD(0), TD(λ), TD-CNN, or Random).
+Open http://localhost:5173 to watch agents play. Use the dropdowns to pick which agents play as Red and Blue (MCTS, PV-MCTS, SP-PV-MCTS, TD(0), TD(λ), TD-CNN, or Random).
 
 ### Arena
 
@@ -92,6 +94,9 @@ python arena.py --agents random td td_cnn
 
 # Train and compare policy/value MCTS against plain MCTS
 python arena.py --agents mcts pv_mcts --pv-mcts-retrain --pv-mcts-train 200 --pv-mcts-teacher-iters 2000 --pv-mcts-iters 400
+
+# Train and compare the self-play policy/value MCTS variant
+python arena.py --agents mcts pv_mcts sp_pv_mcts --sp-pv-mcts-retrain --sp-pv-mcts-generations 7 --sp-pv-mcts-games 60 --sp-pv-mcts-search-iters 300
 
 # Customize settings
 python arena.py --games 200 --size 5 --mcts-iters 1000
