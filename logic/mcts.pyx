@@ -97,6 +97,36 @@ class MCTSAgent:
     def __init__(self, int iterations=DEFAULT_ITERATIONS):
         self.iterations = iterations
 
+    def analyze(self, game):
+        """Return root child stats as (move, visits, wins) after MCTS search.
+
+        ``wins`` is from the perspective of the player who made ``move``. At
+        the root, that is the current player, so these stats are useful as a
+        policy distribution and value target for teacher training.
+        """
+        cdef MCTSNode root = MCTSNode((<Game>game).copy())
+        cdef MCTSNode node
+        cdef int winner
+        cdef int i
+        cdef MCTSNode ch
+        cdef list stats = []
+
+        for i in range(self.iterations):
+            node = root
+
+            while node.is_fully_expanded() and node.children:
+                node = node.select_child()
+
+            if not node.is_terminal() and not node.is_fully_expanded():
+                node = node.expand()
+
+            winner = rollout(node.game)
+            backpropagate(node, winner)
+
+        for ch in root.children:
+            stats.append((ch.move, ch.visits, ch.wins))
+        return stats
+
     def choose_move(self, game):
         cdef MCTSNode root = MCTSNode((<Game>game).copy())
         cdef MCTSNode node
