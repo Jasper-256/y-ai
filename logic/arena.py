@@ -44,6 +44,7 @@ from pv_mcts_agent import (
     load_or_train_pv_mcts,
     load_or_train_self_play_pv_mcts,
 )
+from sp_pv_cnn_agent import load_or_train_self_play_cnn_pv_mcts
 from tee import Tee
 
 
@@ -326,6 +327,24 @@ def main():
                         help="Hidden layer size for self-play PV-MCTS net (default: 192)")
     parser.add_argument("--sp-pv-mcts-epochs", type=int, default=25,
                         help="Training epochs per self-play generation (default: 25)")
+    parser.add_argument("--sp-pv-cnn-iters", type=int, default=350,
+                        help="Self-play PV-CNN MCTS iterations per move (default: 350)")
+    parser.add_argument("--sp-pv-cnn-rollouts", type=int, default=1,
+                        help="Terminal rollouts blended into each self-play PV-CNN leaf evaluation (default: 1)")
+    parser.add_argument("--sp-pv-cnn-value-weight", type=float, default=0.25,
+                        help="Weight of the value net in self-play PV-CNN leaf evaluation (default: 0.25)")
+    parser.add_argument("--sp-pv-cnn-model", type=str, default=None,
+                        help="Path to a saved self-play PV-CNN policy/value model (skip training)")
+    parser.add_argument("--sp-pv-cnn-retrain", action="store_true",
+                        help="Force self-play PV-CNN training even if a model exists")
+    parser.add_argument("--sp-pv-cnn-generations", type=int, default=5,
+                        help="Self-play PV-CNN training generations (default: 5)")
+    parser.add_argument("--sp-pv-cnn-games", type=int, default=20,
+                        help="Self-play PV-CNN games per generation (default: 20)")
+    parser.add_argument("--sp-pv-cnn-search-iters", type=int, default=100,
+                        help="Search iterations per self-play PV-CNN training move (default: 100)")
+    parser.add_argument("--sp-pv-cnn-epochs", type=int, default=18,
+                        help="Training epochs per self-play PV-CNN generation (default: 18)")
     parser.add_argument("--td-train", type=int, default=2000,
                         help="Number of self-play games to train the TD agent (default: 2000)")
     parser.add_argument("--td-hidden", type=int, default=128,
@@ -341,8 +360,8 @@ def main():
     parser.add_argument("--td-cnn-model", type=str, default=None,
                         help="Path to a saved TD-CNN model (skip training)")
     parser.add_argument("--agents", type=str, nargs="+",
-                        default=["random", "heuristic", "td", "td_lambda", "td_cnn", "mcts", "pv_mcts", "sp_pv_mcts"],
-                        help="Which agents to include: random, heuristic, td, td_lambda, td_cnn, mcts, pv_mcts, sp_pv_mcts (default: all)")
+                        default=["random", "heuristic", "td", "td_lambda", "td_cnn", "mcts", "pv_mcts", "sp_pv_mcts", "sp_pv_cnn"],
+                        help="Which agents to include: random, heuristic, td, td_lambda, td_cnn, mcts, pv_mcts, sp_pv_mcts, sp_pv_cnn (default: all)")
     parser.add_argument("--output", type=str, default=None,
                         help="Also write arena output to this file (still shown on terminal)")
     args = parser.parse_args()
@@ -464,6 +483,31 @@ def main():
             )
             print(
                 f"Loaded self-play PV-MCTS agent ({args.sp_pv_mcts_iters} iterations, model={sp_model_path}).",
+                file=out,
+            )
+
+        if "sp_pv_cnn" in args.agents:
+            cnn_model_path = args.sp_pv_cnn_model
+            if cnn_model_path is not None and not os.path.isabs(cnn_model_path):
+                cnn_model_path = os.path.join(_logic_dir, cnn_model_path)
+            cnn_net, cnn_model_path = load_or_train_self_play_cnn_pv_mcts(
+                board_size=args.size,
+                model_path=cnn_model_path,
+                retrain=args.sp_pv_cnn_retrain,
+                generations=args.sp_pv_cnn_generations,
+                games_per_generation=args.sp_pv_cnn_games,
+                search_iters=args.sp_pv_cnn_search_iters,
+                epochs=args.sp_pv_cnn_epochs,
+                out=out,
+            )
+            agents[f"SP-PV-CNN({args.sp_pv_cnn_iters})"] = PVMCTSAgent(
+                net=cnn_net,
+                iterations=args.sp_pv_cnn_iters,
+                rollouts_per_leaf=args.sp_pv_cnn_rollouts,
+                value_weight=args.sp_pv_cnn_value_weight,
+            )
+            print(
+                f"Loaded self-play PV-CNN agent ({args.sp_pv_cnn_iters} iterations, model={cnn_model_path}).",
                 file=out,
             )
 
