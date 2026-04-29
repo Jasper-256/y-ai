@@ -35,6 +35,11 @@ import random
 # Progress log interval and default spacing when checkpoints=True
 _CHECKPOINT_EVERY_N_GAMES = 100
 
+# Checkpoint score weights
+_CHECKPOINT_SCORE_RANDOM_WEIGHT = 0.3
+_CHECKPOINT_SCORE_HEURISTIC_WEIGHT = 0.7
+_CHECKPOINT_SCORE_PREV_PENALTY_LAMBDA = 0.12
+
 
 def _copy_agent_for_checkpoint(model):
     """Deep-copy the agent for evaluation; clears TD caches and disables training."""
@@ -42,6 +47,18 @@ def _copy_agent_for_checkpoint(model):
     snap.training = False
     snap.reset_episode()
     return snap
+
+
+def _combined_win_rate(results, opponent_name):
+    """Compute Current's combined win rate across both seat orderings."""
+    key_cp = ("Current", opponent_name)
+    key_pc = (opponent_name, "Current")
+    wins_cp = results.get(key_cp, {1: 0, 2: 0})
+    wins_pc = results.get(key_pc, {1: 0, 2: 0})
+
+    current_wins = wins_cp[1] + wins_pc[2]
+    total_games = wins_cp[1] + wins_cp[2] + wins_pc[1] + wins_pc[2]
+    return (current_wins / total_games) if total_games > 0 else 0.0
 
 
 def _run_checkpoint_evaluations(model, previous_agent, board_size, iteration, out=sys.stdout):
@@ -65,12 +82,38 @@ def _run_checkpoint_evaluations(model, previous_agent, board_size, iteration, ou
             ("current vs heuristic", {"Current": model, "Heuristic": heur}),
             ("current vs previous", {"Current": model, "Previous": previous_agent}),
         ]
+        checkpoint_metrics = {}
         for label, agents in matchups:
             print(f"\n{label}", file=out, flush=True)
             if label == "current vs previous":
-                run_tournament(agents, games_per_matchup=1, board_size=bs, out=out)
+                results = run_tournament(agents, games_per_matchup=1, board_size=bs, out=out)
+                checkpoint_metrics["wr_prev"] = _combined_win_rate(results, "Previous")
             else:
-                run_tournament(agents, games_per_matchup=games_per_matchup, board_size=bs, out=out)
+                results = run_tournament(agents, games_per_matchup=games_per_matchup, board_size=bs, out=out)
+                if label == "current vs random":
+                    checkpoint_metrics["wr_rand"] = _combined_win_rate(results, "Random")
+                elif label == "current vs heuristic":
+                    checkpoint_metrics["wr_heur"] = _combined_win_rate(results, "Heuristic")
+
+        base = (
+            _CHECKPOINT_SCORE_RANDOM_WEIGHT * checkpoint_metrics["wr_rand"]
+            + _CHECKPOINT_SCORE_HEURISTIC_WEIGHT * checkpoint_metrics["wr_heur"]
+        )
+        penalty = _CHECKPOINT_SCORE_PREV_PENALTY_LAMBDA * (1.0 - checkpoint_metrics["wr_prev"]) ** 2
+        checkpoint_metrics["score"] = base - penalty
+        print(
+            (
+                "\nCheckpoint score:"
+                f" wr_rand={checkpoint_metrics['wr_rand']:.3f},"
+                f" wr_heur={checkpoint_metrics['wr_heur']:.3f},"
+                f" wr_prev={checkpoint_metrics['wr_prev']:.3f},"
+                f" penalty={penalty:.3f},"
+                f" score={checkpoint_metrics['score']:.3f}"
+            ),
+            file=out,
+            flush=True,
+        )
+        return checkpoint_metrics
     finally:
         model.training = was_training
 
@@ -100,6 +143,9 @@ def train(model, num_games=1000, opponent=None, board_size=None, checkpoints=Non
     else:
         checkpoint_set = None
     previous_agent = _copy_agent_for_checkpoint(model) if checkpoint_set else None
+    best_agent = _copy_agent_for_checkpoint(model) if checkpoint_set else None
+    best_game = 0 if checkpoint_set else None
+    best_score = float("-inf")
 
     for i in range(num_games):
         game = Game(size=bs)
@@ -139,10 +185,21 @@ def train(model, num_games=1000, opponent=None, board_size=None, checkpoints=Non
             print(f"  Training game {i + 1}/{num_games}", file=out, flush=True)
 
         if checkpoint_set is not None and (i + 1) in checkpoint_set:
-            _run_checkpoint_evaluations(model, previous_agent, board_size, i + 1, out)
+            checkpoint_metrics = _run_checkpoint_evaluations(model, previous_agent, board_size, i + 1, out)
+            score = checkpoint_metrics["score"]
+            if score > best_score:
+                best_score = score
+                best_agent = _copy_agent_for_checkpoint(model)
+                best_game = i + 1
+                print(
+                    f"  New best checkpoint selected at game {i + 1} (score={best_score:.3f})",
+                    file=out,
+                    flush=True,
+                )
             previous_agent = _copy_agent_for_checkpoint(model)
 
     model.training = False
+    return best_agent, best_game
 
 # ==============================================================================
 # Standalone `training.py` logic
@@ -217,7 +274,14 @@ def main():
         
         # Train the agent
         print(f"Training {args.agent} agent ({args.num_games} games)...", file=out)
-        train(model, num_games=args.num_games, opponent=args.opponent, board_size=args.board_size, checkpoints=args.checkpoints, out=out)
+        best_checkpoint_model, best_checkpoint_game = train(
+            model,
+            num_games=args.num_games,
+            opponent=args.opponent,
+            board_size=args.board_size,
+            checkpoints=args.checkpoints,
+            out=out,
+        )
         print(f"Training complete ({args.num_games} games).", file=out)
 
         # Save the model
@@ -233,8 +297,22 @@ def main():
         save_dir = os.path.dirname(save_path)
         if save_dir:
             os.makedirs(save_dir, exist_ok=True)
+
+        # Always save the final model state.
         model.save(save_path)
-        print(f"Model saved to {save_path}", file=out)
+        print(f"Final model saved to {save_path}", file=out)
+
+        # If checkpoints were evaluated, also save best checkpoint snapshot.
+        if best_checkpoint_model is not None:
+            best_ckpt_path = f"{save_path[:-4]}_best_ckpt.pkl"
+            best_checkpoint_model.save(best_ckpt_path)
+            print(
+                (
+                    f"Best-checkpoint model saved to {best_ckpt_path}"
+                    f" (from training game {best_checkpoint_game})"
+                ),
+                file=out,
+            )
     finally:
         if out_f:
             out_f.close()
