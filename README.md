@@ -17,6 +17,7 @@ This project implements:
 - A PV-MCTS agent that trains policy and value networks from a stronger MCTS teacher, then uses them for PUCT-guided search
 - A self-play PV-MCTS agent that learns from its own search visit counts and final game outcomes
 - A self-play PV-CNN agent that combines policy/value MCTS with a convolutional network and six-way board-symmetry augmentation
+- A self-play policy-only CNN agent that plays directly from a symmetry-averaged policy network with no MCTS
 - A heuristic baseline agent using 1-ply lookahead and static evaluation
 - A random baseline agent
 - An arena for running tournaments between agents and recording win rates
@@ -33,6 +34,7 @@ Each agent lives in `logic/` and exposes a `choose_move(game)` method.
 - **PV-MCTS** (`pv_mcts_agent.py`) — policy/value-guided MCTS. A NumPy MLP is trained from plain-MCTS teacher games; at play time, policy logits seed PUCT priors and the value head is blended with a terminal rollout at leaf nodes. Use `--pv-mcts-retrain`, `--pv-mcts-train`, `--pv-mcts-teacher-iters`, `--pv-mcts-iters`, and `--pv-mcts-value-weight` to tune it.
 - **SP-PV-MCTS** (`pv_mcts_agent.py`) — the self-play variant. It starts from its own policy/value network, plays games against itself, trains policy on its own root visit distributions, and trains value on final winners. Use `--sp-pv-mcts-retrain`, `--sp-pv-mcts-generations`, `--sp-pv-mcts-games`, `--sp-pv-mcts-search-iters`, and `--sp-pv-mcts-iters` to tune it.
 - **SP-PV-CNN** (`sp_pv_cnn_agent.py`) — self-play policy/value MCTS with a CNN trunk. It learns from its own search visit distributions and final winners, then augments every training position across the six triangle symmetries. Use `--sp-pv-cnn-retrain`, `--sp-pv-cnn-generations`, `--sp-pv-cnn-games`, `--sp-pv-cnn-search-iters`, and `--sp-pv-cnn-iters` to tune it.
+- **SP-Policy-CNN** (`sp_policy_cnn_agent.py`) — self-play policy-only CNN. It samples games directly from the policy network, trains winning moves up and losing moves down with six-way board-symmetry augmentation, and chooses arena moves from symmetry-averaged policy probabilities. It does not use MCTS. Use `--sp-policy-cnn-retrain`, `--sp-policy-cnn-continue`, `--sp-policy-cnn-generations`, `--sp-policy-cnn-games`, `--sp-policy-cnn-epochs`, and `--sp-policy-cnn-temperature` to tune it.
 - **TD(0)** (`td_agent.py`) — small MLP value function `V(s) ∈ [0, 1]` trained via self-play TD(0) updates; picks moves with 1-ply lookahead, choosing the child that minimizes the opponent's predicted win probability.
 - **TD(λ)** (`td_lambda_agent.py`) — same network and selection rule as TD(0), but uses eligibility traces so a single TD error propagates credit back across many prior states (`--td-lambda`, default 0.7).
 - **TD-CNN** (`td_cnn_agent.py`) — TD(0) with a CNN value function. The triangular board is embedded diagonally into an `N × N` grid and fed in as 4 channels (exists mask, mine, opponent, empty) so the network can see the board shape. Three 3×3 conv layers feed a small dense head.
@@ -72,7 +74,7 @@ cd web_view
 npm run dev
 ```
 
-Open http://localhost:5173 to watch agents play. Use the dropdowns to pick which agents play as Red and Blue (MCTS, PV-MCTS, SP-PV-MCTS, SP-PV-CNN, TD(0), TD(λ), TD-CNN, or Random).
+Open http://localhost:5173 to watch agents play. Use the dropdowns to pick which agents play as Red and Blue (MCTS, PV-MCTS, SP-PV-MCTS, SP-PV-CNN, SP-Policy-CNN, TD(0), TD(λ), TD-CNN, or Random).
 
 ### Arena
 
@@ -102,6 +104,9 @@ python arena.py --agents mcts pv_mcts sp_pv_mcts --sp-pv-mcts-retrain --sp-pv-mc
 
 # Train and compare the self-play policy/value CNN variant
 python arena.py --agents mcts sp_pv_mcts sp_pv_cnn --sp-pv-cnn-retrain --sp-pv-cnn-generations 5 --sp-pv-cnn-games 20 --sp-pv-cnn-search-iters 100
+
+# Train and compare the self-play policy-only CNN variant
+python arena.py --agents sp_pv_mcts sp_policy_cnn --sp-policy-cnn-retrain --sp-policy-cnn-generations 20 --sp-policy-cnn-games 200
 
 # Customize settings
 python arena.py --games 200 --size 5 --mcts-iters 1000

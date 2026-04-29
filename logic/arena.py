@@ -45,6 +45,10 @@ from pv_mcts_agent import (
     load_or_train_self_play_pv_mcts,
 )
 from sp_pv_cnn_agent import load_or_train_self_play_cnn_pv_mcts
+from sp_policy_cnn_agent import (
+    SPPolicyCNNAgent,
+    load_or_train_self_play_policy_cnn,
+)
 from tee import Tee
 
 
@@ -345,6 +349,20 @@ def main():
                         help="Search iterations per self-play PV-CNN training move (default: 100)")
     parser.add_argument("--sp-pv-cnn-epochs", type=int, default=18,
                         help="Training epochs per self-play PV-CNN generation (default: 18)")
+    parser.add_argument("--sp-policy-cnn-model", type=str, default=None,
+                        help="Path to a saved self-play policy-only CNN model (skip training)")
+    parser.add_argument("--sp-policy-cnn-retrain", action="store_true",
+                        help="Force self-play policy-only CNN training even if a model exists")
+    parser.add_argument("--sp-policy-cnn-continue", action="store_true",
+                        help="Continue training the saved self-play policy-only CNN model")
+    parser.add_argument("--sp-policy-cnn-generations", type=int, default=20,
+                        help="Self-play policy-only CNN training generations (default: 20)")
+    parser.add_argument("--sp-policy-cnn-games", type=int, default=200,
+                        help="Self-play policy-only CNN games per generation (default: 200)")
+    parser.add_argument("--sp-policy-cnn-epochs", type=int, default=8,
+                        help="Training epochs per self-play policy-only CNN generation (default: 8)")
+    parser.add_argument("--sp-policy-cnn-temperature", type=float, default=0.05,
+                        help="Move-selection temperature for self-play policy-only CNN in arena (default: 0.05)")
     parser.add_argument("--td-train", type=int, default=2000,
                         help="Number of self-play games to train the TD agent (default: 2000)")
     parser.add_argument("--td-hidden", type=int, default=128,
@@ -360,8 +378,8 @@ def main():
     parser.add_argument("--td-cnn-model", type=str, default=None,
                         help="Path to a saved TD-CNN model (skip training)")
     parser.add_argument("--agents", type=str, nargs="+",
-                        default=["random", "heuristic", "td", "td_lambda", "td_cnn", "mcts", "pv_mcts", "sp_pv_mcts", "sp_pv_cnn"],
-                        help="Which agents to include: random, heuristic, td, td_lambda, td_cnn, mcts, pv_mcts, sp_pv_mcts, sp_pv_cnn (default: all)")
+                        default=["random", "heuristic", "td", "td_lambda", "td_cnn", "mcts", "pv_mcts", "sp_pv_mcts", "sp_pv_cnn", "sp_policy_cnn"],
+                        help="Which agents to include: random, heuristic, td, td_lambda, td_cnn, mcts, pv_mcts, sp_pv_mcts, sp_pv_cnn, sp_policy_cnn (default: all)")
     parser.add_argument("--output", type=str, default=None,
                         help="Also write arena output to this file (still shown on terminal)")
     args = parser.parse_args()
@@ -508,6 +526,29 @@ def main():
             )
             print(
                 f"Loaded self-play PV-CNN agent ({args.sp_pv_cnn_iters} iterations, model={cnn_model_path}).",
+                file=out,
+            )
+
+        if "sp_policy_cnn" in args.agents:
+            policy_cnn_model_path = args.sp_policy_cnn_model
+            if policy_cnn_model_path is not None and not os.path.isabs(policy_cnn_model_path):
+                policy_cnn_model_path = os.path.join(_logic_dir, policy_cnn_model_path)
+            policy_cnn_net, policy_cnn_model_path = load_or_train_self_play_policy_cnn(
+                board_size=args.size,
+                model_path=policy_cnn_model_path,
+                retrain=args.sp_policy_cnn_retrain,
+                continue_training=args.sp_policy_cnn_continue,
+                generations=args.sp_policy_cnn_generations,
+                games_per_generation=args.sp_policy_cnn_games,
+                epochs=args.sp_policy_cnn_epochs,
+                out=out,
+            )
+            agents["SP-Policy-CNN"] = SPPolicyCNNAgent(
+                net=policy_cnn_net,
+                temperature=args.sp_policy_cnn_temperature,
+            )
+            print(
+                f"Loaded self-play policy-only CNN agent (model={policy_cnn_model_path}).",
                 file=out,
             )
 
