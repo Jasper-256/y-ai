@@ -15,6 +15,7 @@ from pv_mcts_agent import (
     load_or_train_pv_mcts,
     load_or_train_self_play_pv_mcts,
 )
+from sp_pv_cnn_agent import load_or_train_self_play_cnn_pv_mcts
 
 BOARD_SIZE = 7
 MOVE_DELAY = 0.3  # seconds between moves for watchability
@@ -25,6 +26,7 @@ AGENT_REGISTRY = {
     "mcts": lambda: MCTSAgent(iterations=5000),
     "pv_mcts": lambda: _load_pv_mcts_agent(),
     "sp_pv_mcts": lambda: _load_self_play_pv_mcts_agent(),
+    "sp_pv_cnn": lambda: _load_self_play_pv_cnn_agent(),
     "random": lambda: RandomAgent(),
     "td": lambda: _load_td_agent(),
     "td_lambda": lambda: _load_td_lambda_agent(),
@@ -35,6 +37,7 @@ AGENT_LABELS = {
     "mcts": "MCTS (5k iter)",
     "pv_mcts": "PV-MCTS (400 iter)",
     "sp_pv_mcts": "SP-PV-MCTS (600 iter)",
+    "sp_pv_cnn": "SP-PV-CNN (350 iter)",
     "random": "Random",
     "td": "TD(0)",
     "td_lambda": "TD(λ)",
@@ -96,7 +99,18 @@ def _load_self_play_pv_mcts_agent():
         hidden_size=192,
         epochs=25,
     )
-    return PVMCTSAgent(net=net, iterations=400)
+    return PVMCTSAgent(net=net, iterations=600)
+
+
+def _load_self_play_pv_cnn_agent():
+    net, _ = load_or_train_self_play_cnn_pv_mcts(
+        board_size=BOARD_SIZE,
+        generations=5,
+        games_per_generation=20,
+        search_iters=100,
+        epochs=18,
+    )
+    return PVMCTSAgent(net=net, iterations=350, rollouts_per_leaf=1, value_weight=0.25)
 
 
 _game = Game(size=BOARD_SIZE)
