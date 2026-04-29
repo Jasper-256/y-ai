@@ -111,6 +111,9 @@ python arena.py --agents sp_pv_mcts sp_policy_cnn --sp-policy-cnn-retrain --sp-p
 # Customize settings
 python arena.py --games 200 --size 5 --mcts-iters 1000
 
+# Run matchup evaluations in parallel across 8 worker processes
+python arena.py --games 20 --parallel 8
+
 # Train a fresh TD model (instead of loading the saved one)
 python arena.py --agents random td --td-retrain --td-train 10000
 
@@ -123,6 +126,8 @@ python arena.py --agents td td_lambda --td-hidden 256 --td-retrain
 # Load a specific TD model
 python arena.py --td-model path/to/model.pkl
 ```
+
+Use `--parallel N` to evaluate ordered matchups across multiple worker processes. In parallel mode, matchup results are printed as workers finish, so their output order may differ from the serial round-robin order.
 
 ### Training
 
