@@ -16,6 +16,9 @@ import subprocess
 import time
 import argparse
 import math
+import random
+import multiprocessing
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from collections import defaultdict
 import numpy as np
 
@@ -52,6 +55,34 @@ from sp_policy_cnn_agent import (
 from tee import Tee
 
 
+_PARALLEL_AGENTS = None
+
+
+def _init_parallel_worker(agents):
+    """Share loaded agents with forked workers and reseed per process."""
+    global _PARALLEL_AGENTS
+    _PARALLEL_AGENTS = agents
+    seed = (time.time_ns() ^ os.getpid()) & 0xFFFFFFFF
+    random.seed(seed)
+    np.random.seed(seed)
+
+
+def _play_matchup_task(task):
+    name1, name2, games_per_matchup, board_size = task
+    agents = _PARALLEL_AGENTS
+    if agents is None:
+        raise RuntimeError("Parallel worker was not initialized with agents")
+
+    wins = {1: 0, 2: 0}
+    t0 = time.time()
+    for _ in range(games_per_matchup):
+        winner = play_game(agents[name1], agents[name2], board_size)
+        if winner in (1, 2):
+            wins[winner] += 1
+    elapsed = time.time() - t0
+    return (name1, name2), wins, elapsed
+
+
 def play_game(agent1, agent2, board_size=7):
     """Play a single game. agent1 is player 1 (Red), agent2 is player 2 (Blue).
 
@@ -70,7 +101,7 @@ def play_game(agent1, agent2, board_size=7):
     return game.winner
 
 
-def run_tournament(agents, games_per_matchup=100, board_size=7, out=sys.stdout):
+def run_tournament(agents, games_per_matchup=100, board_size=7, parallel=1, out=sys.stdout):
     """Run a round-robin tournament between named agents.
 
     Args:
@@ -84,6 +115,32 @@ def run_tournament(agents, games_per_matchup=100, board_size=7, out=sys.stdout):
     """
     names = list(agents.keys())
     results = {}
+
+    if parallel > 1:
+        tasks = [
+            (name1, name2, games_per_matchup, board_size)
+            for i, name1 in enumerate(names)
+            for j, name2 in enumerate(names)
+            if i != j
+        ]
+        workers = min(parallel, len(tasks))
+        print(f"\nRunning {len(tasks)} ordered matchups across {workers} worker processes.", file=out)
+        ctx = multiprocessing.get_context("fork")
+        with ProcessPoolExecutor(
+            max_workers=workers,
+            mp_context=ctx,
+            initializer=_init_parallel_worker,
+            initargs=(agents,),
+        ) as executor:
+            futures = [executor.submit(_play_matchup_task, task) for task in tasks]
+            for future in as_completed(futures):
+                key, wins, elapsed = future.result()
+                name1, name2 = key
+                print(f"\n{name1} (P1) vs {name2} (P2): done ({elapsed:.1f}s)", file=out)
+                print(f"  {name1} wins: {wins[1]}, {name2} wins: {wins[2]}", file=out)
+                results[key] = wins
+
+        return results
 
     for i, name1 in enumerate(names):
         for j, name2 in enumerate(names):
@@ -380,6 +437,8 @@ def main():
     parser.add_argument("--agents", type=str, nargs="+",
                         default=["random", "heuristic", "td", "td_lambda", "td_cnn", "mcts", "pv_mcts", "sp_pv_mcts", "sp_pv_cnn", "sp_policy_cnn"],
                         help="Which agents to include: random, heuristic, td, td_lambda, td_cnn, mcts, pv_mcts, sp_pv_mcts, sp_pv_cnn, sp_policy_cnn (default: all)")
+    parser.add_argument("--parallel", type=int, default=1,
+                        help="Number of worker processes for arena evaluation (default: 1)")
     parser.add_argument("--output", type=str, default=None,
                         help="Also write arena output to this file (still shown on terminal)")
     args = parser.parse_args()
@@ -558,9 +617,17 @@ def main():
 
         print(f"\nStarting tournament: {list(agents.keys())}", file=out)
         print(f"Board size: {args.size}, Games per matchup: {args.games}", file=out)
+        if args.parallel > 1:
+            print(f"Parallel workers: {args.parallel}", file=out)
         print("=" * 60, file=out)
 
-        results = run_tournament(agents, games_per_matchup=args.games, board_size=args.size, out=out)
+        results = run_tournament(
+            agents,
+            games_per_matchup=args.games,
+            board_size=args.size,
+            parallel=max(1, args.parallel),
+            out=out,
+        )
         print_summary(agents, results, args.games, out=out)
     finally:
         if out_f:

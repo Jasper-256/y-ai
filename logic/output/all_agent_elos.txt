@@ -1,0 +1,433 @@
+Loaded Random agent.
+Loaded TD agent from /Users/jaspermorgal/Developer/y-ai/logic/td_model_s7.pkl
+Loaded TD(λ) agent from /Users/jaspermorgal/Developer/y-ai/logic/td_lambda_model_s7.pkl
+Loaded TD-CNN agent from /Users/jaspermorgal/Developer/y-ai/logic/td_cnn_model_s7.pkl
+Loaded MCTS agent (1000 iterations).
+Loaded PV-MCTS policy/value net from /Users/jaspermorgal/Developer/y-ai/logic/models/pv_mcts_model_s7.pkl
+Loaded PV-MCTS agent (400 iterations, model=/Users/jaspermorgal/Developer/y-ai/logic/models/pv_mcts_model_s7.pkl).
+Loaded self-play PV-MCTS net from /Users/jaspermorgal/Developer/y-ai/logic/models/sp_pv_mcts_model_s7.pkl
+Loaded self-play PV-MCTS agent (600 iterations, model=/Users/jaspermorgal/Developer/y-ai/logic/models/sp_pv_mcts_model_s7.pkl).
+Loaded self-play PV-CNN net from /Users/jaspermorgal/Developer/y-ai/logic/models/sp_pv_cnn_model_s7.pkl
+Loaded self-play PV-CNN agent (350 iterations, model=/Users/jaspermorgal/Developer/y-ai/logic/models/sp_pv_cnn_model_s7.pkl).
+Loaded self-play policy CNN from /Users/jaspermorgal/Developer/y-ai/logic/models/sp_policy_cnn_model_s7.pkl
+Loaded self-play policy-only CNN agent (model=/Users/jaspermorgal/Developer/y-ai/logic/models/sp_policy_cnn_model_s7.pkl).
+
+Starting tournament: ['Random', 'Heuristic', 'TD(0)', 'TD(λ=0.7)', 'TD-CNN', 'MCTS(1000)', 'PV-MCTS(400)', 'SP-PV-MCTS(600)', 'SP-PV-CNN(350)', 'SP-Policy-CNN']
+Board size: 7, Games per matchup: 20
+Parallel workers: 8
+============================================================
+
+Running 90 ordered matchups across 8 worker processes.
+
+Random (P1) vs TD(0) (P2): done (0.1s)
+  Random wins: 2, TD(0) wins: 18
+
+Random (P1) vs Heuristic (P2): done (0.1s)
+  Random wins: 0, Heuristic wins: 20
+
+Random (P1) vs TD(λ=0.7) (P2): done (0.2s)
+  Random wins: 2, TD(λ=0.7) wins: 18
+
+Heuristic (P1) vs Random (P2): done (0.2s)
+  Heuristic wins: 20, Random wins: 0
+
+Heuristic (P1) vs TD(0) (P2): done (0.2s)
+  Heuristic wins: 12, TD(0) wins: 8
+
+Random (P1) vs SP-Policy-CNN (P2): done (0.4s)
+  Random wins: 3, SP-Policy-CNN wins: 17
+
+Heuristic (P1) vs TD(λ=0.7) (P2): done (0.4s)
+  Heuristic wins: 20, TD(λ=0.7) wins: 0
+
+Random (P1) vs TD-CNN (P2): done (0.9s)
+  Random wins: 0, TD-CNN wins: 20
+
+Heuristic (P1) vs TD-CNN (P2): done (1.0s)
+  Heuristic wins: 14, TD-CNN wins: 6
+
+Random (P1) vs MCTS(1000) (P2): done (6.2s)
+  Random wins: 0, MCTS(1000) wins: 20
+
+Heuristic (P1) vs SP-Policy-CNN (P2): done (0.5s)
+  Heuristic wins: 20, SP-Policy-CNN wins: 0
+
+TD(0) (P1) vs Random (P2): done (0.1s)
+  TD(0) wins: 17, Random wins: 3
+
+Heuristic (P1) vs MCTS(1000) (P2): done (6.4s)
+  Heuristic wins: 0, MCTS(1000) wins: 20
+
+TD(0) (P1) vs Heuristic (P2): done (0.2s)
+  TD(0) wins: 14, Heuristic wins: 6
+
+TD(0) (P1) vs TD(λ=0.7) (P2): done (0.4s)
+  TD(0) wins: 20, TD(λ=0.7) wins: 0
+
+TD(0) (P1) vs TD-CNN (P2): done (1.1s)
+  TD(0) wins: 20, TD-CNN wins: 0
+
+TD(0) (P1) vs MCTS(1000) (P2): done (6.5s)
+  TD(0) wins: 0, MCTS(1000) wins: 20
+
+Heuristic (P1) vs PV-MCTS(400) (P2): done (61.5s)
+  Heuristic wins: 0, PV-MCTS(400) wins: 20
+
+Random (P1) vs PV-MCTS(400) (P2): done (62.6s)
+  Random wins: 0, PV-MCTS(400) wins: 20
+
+TD(0) (P1) vs SP-Policy-CNN (P2): done (0.7s)
+  TD(0) wins: 0, SP-Policy-CNN wins: 20
+
+TD(λ=0.7) (P1) vs Random (P2): done (0.3s)
+  TD(λ=0.7) wins: 11, Random wins: 9
+
+TD(λ=0.7) (P1) vs Heuristic (P2): done (0.5s)
+  TD(λ=0.7) wins: 1, Heuristic wins: 19
+
+TD(λ=0.7) (P1) vs TD(0) (P2): done (0.3s)
+  TD(λ=0.7) wins: 0, TD(0) wins: 20
+
+TD(λ=0.7) (P1) vs TD-CNN (P2): done (1.1s)
+  TD(λ=0.7) wins: 20, TD-CNN wins: 0
+
+TD(0) (P1) vs PV-MCTS(400) (P2): done (60.3s)
+  TD(0) wins: 0, PV-MCTS(400) wins: 20
+
+TD(λ=0.7) (P1) vs MCTS(1000) (P2): done (6.5s)
+  TD(λ=0.7) wins: 0, MCTS(1000) wins: 20
+
+TD(0) (P1) vs SP-PV-MCTS(600) (P2): done (74.4s)
+  TD(0) wins: 0, SP-PV-MCTS(600) wins: 20
+
+Heuristic (P1) vs SP-PV-MCTS(600) (P2): done (91.2s)
+  Heuristic wins: 0, SP-PV-MCTS(600) wins: 20
+
+TD(λ=0.7) (P1) vs SP-Policy-CNN (P2): done (0.9s)
+  TD(λ=0.7) wins: 20, SP-Policy-CNN wins: 0
+
+Random (P1) vs SP-PV-MCTS(600) (P2): done (93.9s)
+  Random wins: 1, SP-PV-MCTS(600) wins: 19
+
+TD-CNN (P1) vs Random (P2): done (1.1s)
+  TD-CNN wins: 20, Random wins: 0
+
+TD-CNN (P1) vs Heuristic (P2): done (1.1s)
+  TD-CNN wins: 3, Heuristic wins: 17
+
+TD-CNN (P1) vs TD(0) (P2): done (1.2s)
+  TD-CNN wins: 20, TD(0) wins: 0
+
+TD-CNN (P1) vs TD(λ=0.7) (P2): done (1.3s)
+  TD-CNN wins: 0, TD(λ=0.7) wins: 20
+
+TD-CNN (P1) vs MCTS(1000) (P2): done (7.3s)
+  TD-CNN wins: 0, MCTS(1000) wins: 20
+
+TD(λ=0.7) (P1) vs PV-MCTS(400) (P2): done (63.9s)
+  TD(λ=0.7) wins: 0, PV-MCTS(400) wins: 20
+
+Heuristic (P1) vs SP-PV-CNN(350) (P2): done (139.1s)
+  Heuristic wins: 0, SP-PV-CNN(350) wins: 20
+
+TD-CNN (P1) vs SP-Policy-CNN (P2): done (1.4s)
+  TD-CNN wins: 0, SP-Policy-CNN wins: 20
+
+MCTS(1000) (P1) vs Random (P2): done (7.0s)
+  MCTS(1000) wins: 20, Random wins: 0
+
+Random (P1) vs SP-PV-CNN(350) (P2): done (151.5s)
+  Random wins: 0, SP-PV-CNN(350) wins: 20
+
+MCTS(1000) (P1) vs Heuristic (P2): done (6.9s)
+  MCTS(1000) wins: 20, Heuristic wins: 0
+
+MCTS(1000) (P1) vs TD(0) (P2): done (6.7s)
+  MCTS(1000) wins: 20, TD(0) wins: 0
+
+TD-CNN (P1) vs PV-MCTS(400) (P2): done (65.5s)
+  TD-CNN wins: 0, PV-MCTS(400) wins: 20
+
+MCTS(1000) (P1) vs TD(λ=0.7) (P2): done (7.1s)
+  MCTS(1000) wins: 20, TD(λ=0.7) wins: 0
+
+TD(λ=0.7) (P1) vs SP-PV-MCTS(600) (P2): done (93.3s)
+  TD(λ=0.7) wins: 0, SP-PV-MCTS(600) wins: 20
+
+MCTS(1000) (P1) vs TD-CNN (P2): done (7.5s)
+  MCTS(1000) wins: 20, TD-CNN wins: 0
+
+MCTS(1000) (P1) vs SP-Policy-CNN (P2): done (6.9s)
+  MCTS(1000) wins: 20, SP-Policy-CNN wins: 0
+
+TD-CNN (P1) vs SP-PV-MCTS(600) (P2): done (88.8s)
+  TD-CNN wins: 0, SP-PV-MCTS(600) wins: 20
+
+TD(0) (P1) vs SP-PV-CNN(350) (P2): done (136.4s)
+  TD(0) wins: 5, SP-PV-CNN(350) wins: 15
+
+TD(λ=0.7) (P1) vs SP-PV-CNN(350) (P2): done (130.0s)
+  TD(λ=0.7) wins: 0, SP-PV-CNN(350) wins: 20
+
+MCTS(1000) (P1) vs PV-MCTS(400) (P2): done (66.9s)
+  MCTS(1000) wins: 13, PV-MCTS(400) wins: 7
+
+PV-MCTS(400) (P1) vs Random (P2): done (72.3s)
+  PV-MCTS(400) wins: 20, Random wins: 0
+
+MCTS(1000) (P1) vs SP-PV-MCTS(600) (P2): done (91.2s)
+  MCTS(1000) wins: 9, SP-PV-MCTS(600) wins: 11
+
+PV-MCTS(400) (P1) vs Heuristic (P2): done (69.8s)
+  PV-MCTS(400) wins: 20, Heuristic wins: 0
+
+PV-MCTS(400) (P1) vs TD(0) (P2): done (69.3s)
+  PV-MCTS(400) wins: 20, TD(0) wins: 0
+
+TD-CNN (P1) vs SP-PV-CNN(350) (P2): done (143.3s)
+  TD-CNN wins: 1, SP-PV-CNN(350) wins: 19
+
+PV-MCTS(400) (P1) vs TD(λ=0.7) (P2): done (68.7s)
+  PV-MCTS(400) wins: 20, TD(λ=0.7) wins: 0
+
+PV-MCTS(400) (P1) vs TD-CNN (P2): done (72.0s)
+  PV-MCTS(400) wins: 20, TD-CNN wins: 0
+
+MCTS(1000) (P1) vs SP-PV-CNN(350) (P2): done (140.2s)
+  MCTS(1000) wins: 10, SP-PV-CNN(350) wins: 10
+
+PV-MCTS(400) (P1) vs MCTS(1000) (P2): done (77.0s)
+  PV-MCTS(400) wins: 16, MCTS(1000) wins: 4
+
+PV-MCTS(400) (P1) vs SP-Policy-CNN (P2): done (66.5s)
+  PV-MCTS(400) wins: 20, SP-Policy-CNN wins: 0
+
+SP-PV-MCTS(600) (P1) vs Random (P2): done (118.1s)
+  SP-PV-MCTS(600) wins: 20, Random wins: 0
+
+SP-PV-MCTS(600) (P1) vs TD(0) (P2): done (101.5s)
+  SP-PV-MCTS(600) wins: 20, TD(0) wins: 0
+
+SP-PV-MCTS(600) (P1) vs Heuristic (P2): done (116.0s)
+  SP-PV-MCTS(600) wins: 20, Heuristic wins: 0
+
+PV-MCTS(400) (P1) vs SP-PV-MCTS(600) (P2): done (156.8s)
+  PV-MCTS(400) wins: 15, SP-PV-MCTS(600) wins: 5
+
+SP-PV-MCTS(600) (P1) vs TD(λ=0.7) (P2): done (110.2s)
+  SP-PV-MCTS(600) wins: 20, TD(λ=0.7) wins: 0
+
+SP-PV-MCTS(600) (P1) vs TD-CNN (P2): done (107.0s)
+  SP-PV-MCTS(600) wins: 20, TD-CNN wins: 0
+
+SP-PV-MCTS(600) (P1) vs MCTS(1000) (P2): done (117.0s)
+  SP-PV-MCTS(600) wins: 14, MCTS(1000) wins: 6
+
+PV-MCTS(400) (P1) vs SP-PV-CNN(350) (P2): done (203.3s)
+  PV-MCTS(400) wins: 16, SP-PV-CNN(350) wins: 4
+
+SP-PV-MCTS(600) (P1) vs SP-Policy-CNN (P2): done (107.1s)
+  SP-PV-MCTS(600) wins: 20, SP-Policy-CNN wins: 0
+
+SP-PV-MCTS(600) (P1) vs PV-MCTS(400) (P2): done (179.5s)
+  SP-PV-MCTS(600) wins: 17, PV-MCTS(400) wins: 3
+
+SP-PV-CNN(350) (P1) vs TD(0) (P2): done (162.8s)
+  SP-PV-CNN(350) wins: 20, TD(0) wins: 0
+
+SP-PV-CNN(350) (P1) vs Heuristic (P2): done (181.6s)
+  SP-PV-CNN(350) wins: 20, Heuristic wins: 0
+
+SP-PV-CNN(350) (P1) vs Random (P2): done (194.8s)
+  SP-PV-CNN(350) wins: 20, Random wins: 0
+
+SP-Policy-CNN (P1) vs Random (P2): done (0.6s)
+  SP-Policy-CNN wins: 18, Random wins: 2
+
+SP-Policy-CNN (P1) vs Heuristic (P2): done (0.8s)
+  SP-Policy-CNN wins: 7, Heuristic wins: 13
+
+SP-Policy-CNN (P1) vs TD(0) (P2): done (0.9s)
+  SP-Policy-CNN wins: 20, TD(0) wins: 0
+
+SP-Policy-CNN (P1) vs TD(λ=0.7) (P2): done (0.9s)
+  SP-Policy-CNN wins: 0, TD(λ=0.7) wins: 20
+
+SP-Policy-CNN (P1) vs TD-CNN (P2): done (1.6s)
+  SP-Policy-CNN wins: 20, TD-CNN wins: 0
+
+SP-PV-CNN(350) (P1) vs TD(λ=0.7) (P2): done (160.7s)
+  SP-PV-CNN(350) wins: 20, TD(λ=0.7) wins: 0
+
+SP-Policy-CNN (P1) vs MCTS(1000) (P2): done (7.5s)
+  SP-Policy-CNN wins: 0, MCTS(1000) wins: 20
+
+SP-PV-CNN(350) (P1) vs TD-CNN (P2): done (175.3s)
+  SP-PV-CNN(350) wins: 20, TD-CNN wins: 0
+
+SP-PV-MCTS(600) (P1) vs SP-PV-CNN(350) (P2): done (243.8s)
+  SP-PV-MCTS(600) wins: 20, SP-PV-CNN(350) wins: 0
+
+SP-Policy-CNN (P1) vs PV-MCTS(400) (P2): done (67.6s)
+  SP-Policy-CNN wins: 0, PV-MCTS(400) wins: 20
+
+SP-PV-CNN(350) (P1) vs MCTS(1000) (P2): done (176.0s)
+  SP-PV-CNN(350) wins: 14, MCTS(1000) wins: 6
+
+SP-Policy-CNN (P1) vs SP-PV-MCTS(600) (P2): done (87.3s)
+  SP-Policy-CNN wins: 0, SP-PV-MCTS(600) wins: 20
+
+SP-Policy-CNN (P1) vs SP-PV-CNN(350) (P2): done (101.7s)
+  SP-Policy-CNN wins: 0, SP-PV-CNN(350) wins: 20
+
+SP-PV-CNN(350) (P1) vs SP-Policy-CNN (P2): done (144.4s)
+  SP-PV-CNN(350) wins: 20, SP-Policy-CNN wins: 0
+
+SP-PV-CNN(350) (P1) vs PV-MCTS(400) (P2): done (185.9s)
+  SP-PV-CNN(350) wins: 13, PV-MCTS(400) wins: 7
+
+SP-PV-CNN(350) (P1) vs SP-PV-MCTS(600) (P2): done (180.3s)
+  SP-PV-CNN(350) wins: 15, SP-PV-MCTS(600) wins: 5
+
+============================================================
+OVERALL STANDINGS
+============================================================
+Agent                  Wins   Games    Win%
+------------------------------------------
+SP-PV-MCTS(600)         311     360  86.4%
+PV-MCTS(400)            304     360  84.4%
+SP-PV-CNN(350)          290     360  80.6%
+MCTS(1000)              288     360  80.0%
+Heuristic               161     360  44.7%
+TD(0)                   122     360  33.9%
+SP-Policy-CNN           122     360  33.9%
+TD(λ=0.7)               110     360  30.6%
+TD-CNN                   70     360  19.4%
+Random                   22     360   6.1%
+
+============================================================
+HEAD-TO-HEAD (row vs column, total wins across both sides)
+============================================================
+                            Random        Heuristic            TD(0)        TD(λ=0.7)           TD-CNN       MCTS(1000)     PV-MCTS(400)  SP-PV-MCTS(600)   SP-PV-CNN(350)    SP-Policy-CNN
+Random                         ---             0/40             5/40            11/40             0/40             0/40             0/40             1/40             0/40             5/40
+Heuristic                    40/40              ---            18/40            39/40            31/40             0/40             0/40             0/40             0/40            33/40
+TD(0)                        35/40            22/40              ---            40/40            20/40             0/40             0/40             0/40             5/40             0/40
+TD(λ=0.7)                    29/40             1/40             0/40              ---            40/40             0/40             0/40             0/40             0/40            40/40
+TD-CNN                       40/40             9/40            20/40             0/40              ---             0/40             0/40             0/40             1/40             0/40
+MCTS(1000)                   40/40            40/40            40/40            40/40            40/40              ---            17/40            15/40            16/40            40/40
+PV-MCTS(400)                 40/40            40/40            40/40            40/40            40/40            23/40              ---            18/40            23/40            40/40
+SP-PV-MCTS(600)              39/40            40/40            40/40            40/40            40/40            25/40            22/40              ---            25/40            40/40
+SP-PV-CNN(350)               40/40            40/40            35/40            40/40            39/40            24/40            17/40            15/40              ---            40/40
+SP-Policy-CNN                35/40             7/40            40/40             0/40            40/40             0/40             0/40             0/40             0/40              ---
+
+============================================================
+FIRST-PLAYER ADVANTAGE (per matchup)
+============================================================
+Matchup                         P1 wins  P2 wins  P1 rate
+--------------------------------------------------------
+Heuristic vs MCTS(1000)                0       20    0.0%
+Heuristic vs PV-MCTS(400)              0       20    0.0%
+Heuristic vs Random                   20        0  100.0%
+Heuristic vs SP-PV-CNN(350)            0       20    0.0%
+Heuristic vs SP-PV-MCTS(600)           0       20    0.0%
+Heuristic vs SP-Policy-CNN            20        0  100.0%
+Heuristic vs TD(0)                    12        8   60.0%
+Heuristic vs TD(λ=0.7)                20        0  100.0%
+Heuristic vs TD-CNN                   14        6   70.0%
+MCTS(1000) vs Heuristic                20        0  100.0%
+MCTS(1000) vs PV-MCTS(400)             13        7   65.0%
+MCTS(1000) vs Random                   20        0  100.0%
+MCTS(1000) vs SP-PV-CNN(350)           10       10   50.0%
+MCTS(1000) vs SP-PV-MCTS(600)           9       11   45.0%
+MCTS(1000) vs SP-Policy-CNN            20        0  100.0%
+MCTS(1000) vs TD(0)                    20        0  100.0%
+MCTS(1000) vs TD(λ=0.7)                20        0  100.0%
+MCTS(1000) vs TD-CNN                   20        0  100.0%
+PV-MCTS(400) vs Heuristic                20        0  100.0%
+PV-MCTS(400) vs MCTS(1000)               16        4   80.0%
+PV-MCTS(400) vs Random                   20        0  100.0%
+PV-MCTS(400) vs SP-PV-CNN(350)           16        4   80.0%
+PV-MCTS(400) vs SP-PV-MCTS(600)          15        5   75.0%
+PV-MCTS(400) vs SP-Policy-CNN            20        0  100.0%
+PV-MCTS(400) vs TD(0)                    20        0  100.0%
+PV-MCTS(400) vs TD(λ=0.7)                20        0  100.0%
+PV-MCTS(400) vs TD-CNN                   20        0  100.0%
+Random vs Heuristic                 0       20    0.0%
+Random vs MCTS(1000)                0       20    0.0%
+Random vs PV-MCTS(400)              0       20    0.0%
+Random vs SP-PV-CNN(350)            0       20    0.0%
+Random vs SP-PV-MCTS(600)           1       19    5.0%
+Random vs SP-Policy-CNN             3       17   15.0%
+Random vs TD(0)                     2       18   10.0%
+Random vs TD(λ=0.7)                 2       18   10.0%
+Random vs TD-CNN                    0       20    0.0%
+SP-PV-CNN(350) vs Heuristic                20        0  100.0%
+SP-PV-CNN(350) vs MCTS(1000)               14        6   70.0%
+SP-PV-CNN(350) vs PV-MCTS(400)             13        7   65.0%
+SP-PV-CNN(350) vs Random                   20        0  100.0%
+SP-PV-CNN(350) vs SP-PV-MCTS(600)          15        5   75.0%
+SP-PV-CNN(350) vs SP-Policy-CNN            20        0  100.0%
+SP-PV-CNN(350) vs TD(0)                    20        0  100.0%
+SP-PV-CNN(350) vs TD(λ=0.7)                20        0  100.0%
+SP-PV-CNN(350) vs TD-CNN                   20        0  100.0%
+SP-PV-MCTS(600) vs Heuristic                20        0  100.0%
+SP-PV-MCTS(600) vs MCTS(1000)               14        6   70.0%
+SP-PV-MCTS(600) vs PV-MCTS(400)             17        3   85.0%
+SP-PV-MCTS(600) vs Random                   20        0  100.0%
+SP-PV-MCTS(600) vs SP-PV-CNN(350)           20        0  100.0%
+SP-PV-MCTS(600) vs SP-Policy-CNN            20        0  100.0%
+SP-PV-MCTS(600) vs TD(0)                    20        0  100.0%
+SP-PV-MCTS(600) vs TD(λ=0.7)                20        0  100.0%
+SP-PV-MCTS(600) vs TD-CNN                   20        0  100.0%
+SP-Policy-CNN vs Heuristic                 7       13   35.0%
+SP-Policy-CNN vs MCTS(1000)                0       20    0.0%
+SP-Policy-CNN vs PV-MCTS(400)              0       20    0.0%
+SP-Policy-CNN vs Random                   18        2   90.0%
+SP-Policy-CNN vs SP-PV-CNN(350)            0       20    0.0%
+SP-Policy-CNN vs SP-PV-MCTS(600)           0       20    0.0%
+SP-Policy-CNN vs TD(0)                    20        0  100.0%
+SP-Policy-CNN vs TD(λ=0.7)                 0       20    0.0%
+SP-Policy-CNN vs TD-CNN                   20        0  100.0%
+TD(0) vs Heuristic                14        6   70.0%
+TD(0) vs MCTS(1000)                0       20    0.0%
+TD(0) vs PV-MCTS(400)              0       20    0.0%
+TD(0) vs Random                   17        3   85.0%
+TD(0) vs SP-PV-CNN(350)            5       15   25.0%
+TD(0) vs SP-PV-MCTS(600)           0       20    0.0%
+TD(0) vs SP-Policy-CNN             0       20    0.0%
+TD(0) vs TD(λ=0.7)                20        0  100.0%
+TD(0) vs TD-CNN                   20        0  100.0%
+TD(λ=0.7) vs Heuristic                 1       19    5.0%
+TD(λ=0.7) vs MCTS(1000)                0       20    0.0%
+TD(λ=0.7) vs PV-MCTS(400)              0       20    0.0%
+TD(λ=0.7) vs Random                   11        9   55.0%
+TD(λ=0.7) vs SP-PV-CNN(350)            0       20    0.0%
+TD(λ=0.7) vs SP-PV-MCTS(600)           0       20    0.0%
+TD(λ=0.7) vs SP-Policy-CNN            20        0  100.0%
+TD(λ=0.7) vs TD(0)                     0       20    0.0%
+TD(λ=0.7) vs TD-CNN                   20        0  100.0%
+TD-CNN vs Heuristic                 3       17   15.0%
+TD-CNN vs MCTS(1000)                0       20    0.0%
+TD-CNN vs PV-MCTS(400)              0       20    0.0%
+TD-CNN vs Random                   20        0  100.0%
+TD-CNN vs SP-PV-CNN(350)            1       19    5.0%
+TD-CNN vs SP-PV-MCTS(600)           0       20    0.0%
+TD-CNN vs SP-Policy-CNN             0       20    0.0%
+TD-CNN vs TD(0)                    20        0  100.0%
+TD-CNN vs TD(λ=0.7)                 0       20    0.0%
+
+============================================================
+BRADLEY-TERRY ELO RATINGS
+============================================================
+Agent                    Rating
+--------------------------------
+SP-PV-MCTS(600)         2108 ± 47    
+PV-MCTS(400)            2078 ± 47    
+SP-PV-CNN(350)          2019 ± 46    
+MCTS(1000)              2011 ± 46    
+Heuristic               1354 ± 35    
+TD(0)                   1212 ± 35    
+SP-Policy-CNN           1212 ± 35    
+TD(λ=0.7)               1171 ± 35    
+TD-CNN                  1029 ± 37    
+Random                   807 ± 45    
