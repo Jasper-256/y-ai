@@ -16,6 +16,7 @@ from pv_mcts_agent import (
     load_or_train_self_play_pv_mcts,
 )
 from sp_pv_cnn_agent import load_or_train_self_play_cnn_pv_mcts
+from sp_policy_cnn_agent import SPPolicyCNNAgent, load_or_train_self_play_policy_cnn
 
 BOARD_SIZE = 7
 MOVE_DELAY = 0.3  # seconds between moves for watchability
@@ -27,6 +28,7 @@ AGENT_REGISTRY = {
     "pv_mcts": lambda: _load_pv_mcts_agent(),
     "sp_pv_mcts": lambda: _load_self_play_pv_mcts_agent(),
     "sp_pv_cnn": lambda: _load_self_play_pv_cnn_agent(),
+    "sp_policy_cnn": lambda: _load_self_play_policy_cnn_agent(),
     "random": lambda: RandomAgent(),
     "td": lambda: _load_td_agent(),
     "td_lambda": lambda: _load_td_lambda_agent(),
@@ -38,6 +40,7 @@ AGENT_LABELS = {
     "pv_mcts": "PV-MCTS (400 iter)",
     "sp_pv_mcts": "SP-PV-MCTS (600 iter)",
     "sp_pv_cnn": "SP-PV-CNN (350 iter)",
+    "sp_policy_cnn": "SP-Policy-CNN",
     "random": "Random",
     "td": "TD(0)",
     "td_lambda": "TD(λ)",
@@ -111,6 +114,16 @@ def _load_self_play_pv_cnn_agent():
         epochs=18,
     )
     return PVMCTSAgent(net=net, iterations=350, rollouts_per_leaf=1, value_weight=0.25)
+
+
+def _load_self_play_policy_cnn_agent():
+    net, _ = load_or_train_self_play_policy_cnn(
+        board_size=BOARD_SIZE,
+        generations=20,
+        games_per_generation=200,
+        epochs=8,
+    )
+    return SPPolicyCNNAgent(net=net, temperature=0.05)
 
 
 _game = Game(size=BOARD_SIZE)
