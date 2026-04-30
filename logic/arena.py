@@ -348,10 +348,10 @@ def main():
                         help="Games per matchup direction (default: 100)")
     parser.add_argument("--size", type=int, default=7,
                         help="Board size (default: 7)")
-    parser.add_argument("--mcts-iters", type=int, default=1000,
-                        help="MCTS iterations per move (default: 1000)")
-    parser.add_argument("--pv-mcts-iters", type=int, default=400,
-                        help="PV-MCTS iterations per move (default: 400)")
+    parser.add_argument("--mcts-iters", type=int, default=500,
+                        help="MCTS iterations per move (default: 500)")
+    parser.add_argument("--pv-mcts-iters", type=int, default=500,
+                        help="PV-MCTS iterations per move (default: 500)")
     parser.add_argument("--pv-mcts-rollouts", type=int, default=1,
                         help="Terminal rollouts blended into each PV-MCTS leaf evaluation (default: 1)")
     parser.add_argument("--pv-mcts-value-weight", type=float, default=0.25,
@@ -368,8 +368,8 @@ def main():
                         help="Hidden layer size for the PV-MCTS policy/value net (default: 192)")
     parser.add_argument("--pv-mcts-epochs", type=int, default=80,
                         help="Training epochs for the PV-MCTS policy/value net (default: 80)")
-    parser.add_argument("--sp-pv-mcts-iters", type=int, default=600,
-                        help="Self-play PV-MCTS iterations per move (default: 600)")
+    parser.add_argument("--sp-pv-mcts-iters", type=int, default=500,
+                        help="Self-play PV-MCTS iterations per move (default: 500)")
     parser.add_argument("--sp-pv-mcts-rollouts", type=int, default=1,
                         help="Terminal rollouts blended into each self-play PV-MCTS leaf evaluation (default: 1)")
     parser.add_argument("--sp-pv-mcts-value-weight", type=float, default=0.25,
@@ -388,8 +388,8 @@ def main():
                         help="Hidden layer size for self-play PV-MCTS net (default: 192)")
     parser.add_argument("--sp-pv-mcts-epochs", type=int, default=25,
                         help="Training epochs per self-play generation (default: 25)")
-    parser.add_argument("--sp-pv-cnn-iters", type=int, default=350,
-                        help="Self-play PV-CNN MCTS iterations per move (default: 350)")
+    parser.add_argument("--sp-pv-cnn-iters", type=int, default=500,
+                        help="Self-play PV-CNN MCTS iterations per move (default: 500)")
     parser.add_argument("--sp-pv-cnn-rollouts", type=int, default=1,
                         help="Terminal rollouts blended into each self-play PV-CNN leaf evaluation (default: 1)")
     parser.add_argument("--sp-pv-cnn-value-weight", type=float, default=0.25,
