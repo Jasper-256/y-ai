@@ -18,7 +18,7 @@ function cellColor(value) {
   return "#bdc3c7";
 }
 
-export default function Board({ size, cells, moveHistory }) {
+export default function Board({ size, cells, moveHistory, interactive, onMove }) {
   const maxRow = size - 1;
   const padX = 30;
   const padY = 25;
@@ -36,15 +36,18 @@ export default function Board({ size, cells, moveHistory }) {
       const key = `${r},${c}`;
       const value = cells[key] || 0;
       const isLast = lastMove && lastMove.row === r && lastMove.col === c;
+      const canPlay = interactive && value === 0;
 
       hexes.push(
         <polygon
           key={key}
+          className={canPlay ? "cell playable" : "cell"}
           points={hexCorners(cx, cy)}
           fill={cellColor(value)}
           stroke={isLast ? "#f1c40f" : "#7f8c8d"}
           strokeWidth={isLast ? 3 : 1}
           opacity={value === 0 ? 0.6 : 1}
+          onClick={canPlay ? () => onMove(r, c) : undefined}
         />
       );
     }

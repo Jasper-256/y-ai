@@ -31,6 +31,14 @@ function App() {
     });
   };
 
+  const makeMove = (row, col) => {
+    fetch("http://localhost:5001/move", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ row, col }),
+    });
+  };
+
   if (error && !state) {
     return <div className="container"><p className="error">{error}</p></div>;
   }
@@ -42,10 +50,13 @@ function App() {
   const available = state.available_agents || [];
   const p1Label = agents["1"]?.label || "?";
   const p2Label = agents["2"]?.label || "?";
+  const isHumanTurn = agents[String(state.current_player)]?.key === "human" && !state.winner;
 
   const statusText = state.winner
     ? `${state.winner === 1 ? p1Label : p2Label} (${state.winner === 1 ? "Red" : "Blue"}) wins!`
-    : `Turn: ${state.current_player === 1 ? p1Label : p2Label} (${state.current_player === 1 ? "Red" : "Blue"})`;
+    : isHumanTurn
+      ? `Your turn: ${state.current_player === 1 ? "Red" : "Blue"}`
+      : `Turn: ${state.current_player === 1 ? p1Label : p2Label} (${state.current_player === 1 ? "Red" : "Blue"})`;
 
   return (
     <div className="container">
@@ -80,6 +91,8 @@ function App() {
           size={state.size}
           cells={state.cells}
           moveHistory={state.move_history}
+          interactive={isHumanTurn}
+          onMove={makeMove}
         />
       </div>
 
