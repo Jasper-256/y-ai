@@ -1,0 +1,180 @@
+=================================================================
+ELO TOURNAMENT
+  Agents  : ['MASKABLE_PPO', 'PPO', 'A2C', 'DQN', 'Random', 'Heuristic']
+  Board   : size 7
+  Games   : 50 per ordered pair (100 per unordered pair)
+=================================================================
+
+MASKABLE_PPO (P1) vs PPO (P2): ..... done (0.6s)
+  MASKABLE_PPO wins: 50, PPO wins: 0
+
+MASKABLE_PPO (P1) vs A2C (P2): ..... done (0.8s)
+  MASKABLE_PPO wins: 50, A2C wins: 0
+
+MASKABLE_PPO (P1) vs DQN (P2): ..... done (0.7s)
+  MASKABLE_PPO wins: 50, DQN wins: 0
+
+MASKABLE_PPO (P1) vs Random (P2): ..... done (0.6s)
+  MASKABLE_PPO wins: 50, Random wins: 0
+
+MASKABLE_PPO (P1) vs Heuristic (P2): ..... done (1.4s)
+  MASKABLE_PPO wins: 28, Heuristic wins: 22
+
+PPO (P1) vs MASKABLE_PPO (P2): ..... done (0.7s)
+  PPO wins: 0, MASKABLE_PPO wins: 50
+
+PPO (P1) vs A2C (P2): ..... done (0.7s)
+  PPO wins: 33, A2C wins: 17
+
+PPO (P1) vs DQN (P2): ..... done (0.6s)
+  PPO wins: 50, DQN wins: 0
+
+PPO (P1) vs Random (P2): ..... done (0.4s)
+  PPO wins: 39, Random wins: 11
+
+PPO (P1) vs Heuristic (P2): ..... done (0.7s)
+  PPO wins: 10, Heuristic wins: 40
+
+A2C (P1) vs MASKABLE_PPO (P2): ..... done (1.0s)
+  A2C wins: 0, MASKABLE_PPO wins: 50
+
+A2C (P1) vs PPO (P2): ..... done (0.6s)
+  A2C wins: 49, PPO wins: 1
+
+A2C (P1) vs DQN (P2): ..... done (0.7s)
+  A2C wins: 0, DQN wins: 50
+
+A2C (P1) vs Random (P2): ..... done (0.4s)
+  A2C wins: 36, Random wins: 14
+
+A2C (P1) vs Heuristic (P2): ..... done (0.7s)
+  A2C wins: 14, Heuristic wins: 36
+
+DQN (P1) vs MASKABLE_PPO (P2): ..... done (0.6s)
+  DQN wins: 50, MASKABLE_PPO wins: 0
+
+DQN (P1) vs PPO (P2): ..... done (0.6s)
+  DQN wins: 50, PPO wins: 0
+
+DQN (P1) vs A2C (P2): ..... done (0.5s)
+  DQN wins: 0, A2C wins: 50
+
+DQN (P1) vs Random (P2): ..... done (0.2s)
+  DQN wins: 46, Random wins: 4
+
+DQN (P1) vs Heuristic (P2): ..... done (0.5s)
+  DQN wins: 18, Heuristic wins: 32
+
+Random (P1) vs MASKABLE_PPO (P2): ..... done (0.5s)
+  Random wins: 3, MASKABLE_PPO wins: 47
+
+Random (P1) vs PPO (P2): ..... done (0.4s)
+  Random wins: 20, PPO wins: 30
+
+Random (P1) vs A2C (P2): ..... done (0.4s)
+  Random wins: 17, A2C wins: 33
+
+Random (P1) vs DQN (P2): ..... done (0.3s)
+  Random wins: 6, DQN wins: 44
+
+Random (P1) vs Heuristic (P2): ..... done (0.6s)
+  Random wins: 2, Heuristic wins: 48
+
+Heuristic (P1) vs MASKABLE_PPO (P2): ..... done (1.2s)
+  Heuristic wins: 24, MASKABLE_PPO wins: 26
+
+Heuristic (P1) vs PPO (P2): ..... done (0.7s)
+  Heuristic wins: 50, PPO wins: 0
+
+Heuristic (P1) vs A2C (P2): ..... done (0.6s)
+  Heuristic wins: 47, A2C wins: 3
+
+Heuristic (P1) vs DQN (P2): ..... done (0.5s)
+  Heuristic wins: 39, DQN wins: 11
+
+Heuristic (P1) vs Random (P2): ..... done (0.3s)
+  Heuristic wins: 50, Random wins: 0
+
+============================================================
+OVERALL STANDINGS
+============================================================
+Agent                  Wins   Games    Win%
+------------------------------------------
+MASKABLE_PPO            401     500  80.2%
+Heuristic               388     500  77.6%
+DQN                     269     500  53.8%
+A2C                     202     500  40.4%
+PPO                     163     500  32.6%
+Random                   77     500  15.4%
+
+============================================================
+HEAD-TO-HEAD (row vs column, total wins across both sides)
+============================================================
+                MASKABLE_PPO           PPO           A2C           DQN        Random     Heuristic
+MASKABLE_PPO             ---       100/100       100/100        50/100        97/100        54/100
+PPO                    0/100           ---        34/100        50/100        69/100        10/100
+A2C                    0/100        66/100           ---        50/100        69/100        17/100
+DQN                   50/100        50/100        50/100           ---        90/100        29/100
+Random                 3/100        31/100        31/100        10/100           ---         2/100
+Heuristic             46/100        90/100        83/100        71/100        98/100           ---
+
+============================================================
+FIRST-PLAYER ADVANTAGE (per matchup)
+============================================================
+Matchup                         P1 wins  P2 wins  P1 rate
+--------------------------------------------------------
+A2C vs DQN                       0       50    0.0%
+A2C vs Heuristic                14       36   28.0%
+A2C vs MASKABLE_PPO              0       50    0.0%
+A2C vs PPO                      49        1   98.0%
+A2C vs Random                   36       14   72.0%
+DQN vs A2C                       0       50    0.0%
+DQN vs Heuristic                18       32   36.0%
+DQN vs MASKABLE_PPO             50        0  100.0%
+DQN vs PPO                      50        0  100.0%
+DQN vs Random                   46        4   92.0%
+Heuristic vs A2C                      47        3   94.0%
+Heuristic vs DQN                      39       11   78.0%
+Heuristic vs MASKABLE_PPO             24       26   48.0%
+Heuristic vs PPO                      50        0  100.0%
+Heuristic vs Random                   50        0  100.0%
+MASKABLE_PPO vs A2C                      50        0  100.0%
+MASKABLE_PPO vs DQN                      50        0  100.0%
+MASKABLE_PPO vs Heuristic                28       22   56.0%
+MASKABLE_PPO vs PPO                      50        0  100.0%
+MASKABLE_PPO vs Random                   50        0  100.0%
+PPO vs A2C                      33       17   66.0%
+PPO vs DQN                      50        0  100.0%
+PPO vs Heuristic                10       40   20.0%
+PPO vs MASKABLE_PPO              0       50    0.0%
+PPO vs Random                   39       11   78.0%
+Random vs A2C                      17       33   34.0%
+Random vs DQN                       6       44   12.0%
+Random vs Heuristic                 2       48    4.0%
+Random vs MASKABLE_PPO              3       47    6.0%
+Random vs PPO                      20       30   40.0%
+
+============================================================
+BRADLEY-TERRY ELO RATINGS
+============================================================
+Agent                    Rating
+--------------------------------
+MASKABLE_PPO            1740 ± 18    
+Heuristic               1716 ± 17    
+DQN                     1528 ± 15    
+A2C                     1429 ± 15    
+PPO                     1369 ± 16    
+Random                  1218 ± 19    
+
+=======================================================
+FINAL ELO LEADERBOARD  (Bradley-Terry)
+=======================================================
+Rank   Agent                        ELO     ±SE
+-------------------------------------------------------
+  1    MASKABLE_PPO               1740  ±18     █████████████
+  2    Heuristic                  1716  ±17     ████████████
+  3    DQN                        1528  ±15     ████████
+  4    A2C                        1429  ±15     █████
+  5    PPO                        1369  ±16     ████
+  6    Random                     1218  ±19     █
+=======================================================

@@ -6,6 +6,8 @@ Group members: Jasper Morgal, Advait Shinde, Nickzad Bayati, Toney Zhen
 
 ## About
 
+![Alt text](img/arena.png)
+
 Game of Y is a connection board game played on a triangular hex grid. Two players (Red and Blue) take turns placing stones. The goal is to form a connected group of your stones that touches all three sides of the triangle. Y cannot end in a draw.
 
 This project implements:
@@ -30,7 +32,7 @@ Each agent lives in `logic/` and exposes a `choose_move(game)` method.
 
 - **Random** (`random_agent.py`) — picks a uniformly random legal move. A trivial baseline.
 - **Heuristic** (`heuristic_agent.py`) — non-learning 1-ply lookahead that scores each successor by how many of the triangle's three sides its best connected group touches (primary), stone count, and adjacent empty cells (tiebreakers).
-- **MCTS** (`mcts.pyx`) — Monte Carlo Tree Search with UCB1 selection (c=1.41) and uniform-random rollouts, budgeted by iterations per move (default 1000, `--mcts-iters`). Implemented in Cython for speed.
+- **MCTS** (`mcts.pyx`) — Monte Carlo Tree Search with UCB1 selection (c=1.41) and uniform-random rollouts, budgeted by iterations per move (default 500, `--mcts-iters`). Implemented in Cython for speed.
 - **PV-MCTS** (`pv_mcts_agent.py`) — policy/value-guided MCTS. A NumPy MLP is trained from plain-MCTS teacher games; at play time, policy logits seed PUCT priors and the value head is blended with a terminal rollout at leaf nodes. Use `--pv-mcts-retrain`, `--pv-mcts-train`, `--pv-mcts-teacher-iters`, `--pv-mcts-iters`, and `--pv-mcts-value-weight` to tune it.
 - **SP-PV-MCTS** (`pv_mcts_agent.py`) — the self-play variant. It starts from its own policy/value network, plays games against itself, trains policy on its own root visit distributions, and trains value on final winners. Use `--sp-pv-mcts-retrain`, `--sp-pv-mcts-generations`, `--sp-pv-mcts-games`, `--sp-pv-mcts-search-iters`, and `--sp-pv-mcts-iters` to tune it.
 - **SP-PV-CNN** (`sp_pv_cnn_agent.py`) — self-play policy/value MCTS with a CNN trunk. It learns from its own search visit distributions and final winners, then augments every training position across the six triangle symmetries. Use `--sp-pv-cnn-retrain`, `--sp-pv-cnn-generations`, `--sp-pv-cnn-games`, `--sp-pv-cnn-search-iters`, and `--sp-pv-cnn-iters` to tune it.
@@ -97,7 +99,7 @@ python arena.py --agents random td td_lambda
 python arena.py --agents random td td_cnn
 
 # Train and compare policy/value MCTS against plain MCTS
-python arena.py --agents mcts pv_mcts --pv-mcts-retrain --pv-mcts-train 200 --pv-mcts-teacher-iters 2000 --pv-mcts-iters 400
+python arena.py --agents mcts pv_mcts --pv-mcts-retrain --pv-mcts-train 200 --pv-mcts-teacher-iters 2000
 
 # Train and compare the self-play policy/value MCTS variant
 python arena.py --agents mcts pv_mcts sp_pv_mcts --sp-pv-mcts-retrain --sp-pv-mcts-generations 7 --sp-pv-mcts-games 60 --sp-pv-mcts-search-iters 300
@@ -109,10 +111,13 @@ python arena.py --agents mcts sp_pv_mcts sp_pv_cnn --sp-pv-cnn-retrain --sp-pv-c
 python arena.py --agents sp_pv_mcts sp_policy_cnn --sp-policy-cnn-retrain --sp-policy-cnn-generations 20 --sp-policy-cnn-games 200
 
 # Customize settings
-python arena.py --games 200 --size 5 --mcts-iters 1000
+python arena.py --games 200 --size 5 --mcts-iters 750
 
 # Run matchup evaluations in parallel across 8 worker processes
 python arena.py --games 20 --parallel 8
+
+# Sensible full-model evaluation with saved output
+python arena.py --output all_agent_elos.txt --games 20 --parallel 8
 
 # Train a fresh TD model (instead of loading the saved one)
 python arena.py --agents random td --td-retrain --td-train 10000
