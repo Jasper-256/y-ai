@@ -6,7 +6,7 @@ Group members: Jasper Morgal, Advait Shinde, Nickzad Bayati, Toney Zhen
 
 ## About
 
-![Alt text](img/arena.png)
+![Alt text](figures/arena.png)
 
 Game of Y is a connection board game played on a triangular hex grid. Two players (Red and Blue) take turns placing stones. The goal is to form a connected group of your stones that touches all three sides of the triangle. Y cannot end in a draw.
 
