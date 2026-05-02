@@ -1,0 +1,755 @@
+\documentclass[conference]{IEEEtran}
+
+% ── Packages ──────────────────────────────────────────────────────────────
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{cite}
+\usepackage{xcolor}
+\usepackage{balance}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{microtype}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  citecolor=blue,
+  urlcolor=blue
+}
+
+% ── Title block ────────────────────────────────────────────────────────────
+\title{Applying Reinforcement Learning to the\\Connection Game Y}
+
+\author{
+  \IEEEauthorblockN{Advait Shinde\IEEEauthorrefmark{1},
+                    Jasper Morgal\IEEEauthorrefmark{2},
+                    Nickzad Bayati\IEEEauthorrefmark{3},
+                    Toney Zhen\IEEEauthorrefmark{4}}
+  \IEEEauthorblockA{Department of Computer Engineering\\
+    San José State University, San José, CA\\
+    \{advait.shinde, jasper.morgal, nickzad.bayati, toney.zhen\}@sjsu.edu}
+    }
+
+
+\begin{document}
+\maketitle
+
+% ── Abstract ───────────────────────────────────────────────────────────────
+\begin{abstract}
+Y is a connection strategy game played on a triangular hexagonal board where the
+goal is to form a connected group of stones touching all three sides. While
+strategically complex games such as Go and Hex have been extensively explored with
+reinforcement learning, Y remains largely unexamined in the literature. In this
+work, we implement and evaluate nine distinct agents across three paradigms:
+tree-search agents (MCTS and policy/value-guided MCTS variants), temporal
+difference learning agents (TD(0), TD($\lambda$), and TD-CNN), and
+Stable-Baselines3 deep RL agents (MaskablePPO, PPO, A2C, and DQN). All agents
+compete in round-robin tournaments evaluated via Bradley--Terry Elo ratings.
+Our results show a clear three-tier hierarchy: search-based agents dominate
+($\text{Elo} > 1869$), SB3 agents with action masking are competitive with
+hand-crafted heuristics ($\text{Elo} \approx 1740$), and pure value-based
+TD agents form a weaker tier ($\text{Elo} < 1250$). Among deep RL methods,
+action masking proves to be the single most impactful design choice, enabling
+MaskablePPO to outperform all TD agents and match the domain-knowledge
+heuristic after only 2\,M training steps. We also demonstrate that iterative
+self-play curricula benefit MCTS-guided methods but can destabilize on-policy
+gradient methods such as PPO.
+\end{abstract}
+
+\begin{IEEEkeywords}
+reinforcement learning, Monte Carlo tree search, temporal difference learning,
+connection games, policy gradient, action masking, self-play, Elo rating
+\end{IEEEkeywords}
+
+% ══════════════════════════════════════════════════════════════════════════
+\section{Introduction}
+% ══════════════════════════════════════════════════════════════════════════
+
+Reinforcement learning (RL) has demonstrated remarkable success in combinatorial
+board games, from TD-Gammon \cite{tesauro1995} and Deep Blue
+\cite{campbell2002} to AlphaGo \cite{silver2016} and AlphaZero
+\cite{silver2017}. These advances have inspired the application of similar
+methods to a wide range of abstract strategy games. Y, invented by John Nash and
+Craige Schensted in the 1950s, is a two-player zero-sum connection game played on
+a triangular hexagonal board. The first player to form a connected group of their
+stones that simultaneously touches all three sides of the board wins. Y shares
+structural properties with Hex: determinism, perfect information, no chance
+elements, and no draws. However, its three-sided win condition gives rise to
+qualitatively different strategic patterns that have not yet been studied in the
+RL literature.
+
+This paper makes the following contributions:
+
+\begin{enumerate}
+  \item A complete open-source implementation of Y as a Cython-accelerated game
+    engine with a Gymnasium-compatible environment. (\href{https://github.com/Jasper-256/y-ai}{https://github.com/Jasper-256/y-ai})
+  \item Training and evaluation of nine agents spanning three paradigms: MCTS
+    variants, TD learning, and SB3 deep RL.
+  \item A comprehensive round-robin tournament with Bradley--Terry Elo analysis
+    identifying a clear performance hierarchy.
+  \item Empirical evidence that action masking is the dominant factor separating
+    effective from ineffective deep RL agents on this domain.
+  \item An analysis of self-play curriculum effects, showing divergent outcomes
+    for search-based versus gradient-based methods.
+\end{enumerate}
+
+% ══════════════════════════════════════════════════════════════════════════
+\section{Related Work}
+% ══════════════════════════════════════════════════════════════════════════
+
+\subsection{Search-Based Methods}
+
+AlphaZero \cite{silver2017} established the modern paradigm for game-playing AI
+by combining MCTS with jointly trained policy and value networks in a self-play
+loop. The policy network provides PUCT-guided priors that focus search on
+promising moves, while the value network replaces Monte Carlo rollouts with
+direct position evaluation. MuZero \cite{schrittwieser2021} extended this
+framework to settings where game dynamics are not explicitly known by learning a
+latent model of the environment. Our PV-MCTS and SP-PV-MCTS agents follow the
+AlphaZero design philosophy, but use lightweight NumPy MLPs rather than deep
+residual networks due to hardware constraints.
+
+\subsection{Temporal Difference Learning}
+
+TD-Gammon \cite{tesauro1995} demonstrated that TD($\lambda$) with a neural
+network value function can reach expert-level play in Backgammon. TD(0) is a
+special case that updates only from the immediately following state, while
+TD($\lambda$) uses eligibility traces to propagate credit across an entire
+episode. These methods have been applied to Chess \cite{veness2009} and other
+board games, typically as value estimators for 1-ply or multi-ply lookahead.
+
+\subsection{Deep RL for Board Games}
+
+Anthony et al.\ \cite{anthony2017} proposed Thinking Fast and Slow, which
+combines a fast neural network policy with a slower MCTS planner and showed
+strong results on the game of Hex. Stable-Baselines3 \cite{raffin2021} provides
+reliable, well-tested implementations of PPO \cite{schulman2017}, A2C, and DQN
+\cite{mnih2015} that have been applied to a variety of sequential decision-making
+problems. MaskablePPO from sb3-contrib \cite{sb3contrib} extends PPO with action
+masking, preventing the policy from placing probability mass on illegal moves a
+critical feature for board games with a shrinking legal action set.
+
+\subsection{The Game of Y and Hex}
+
+Hex has received considerable RL attention. HexHex \cite{harbecke2025} is an
+AlphaGo Zero adaptation for Hex that demonstrates strong play through self-play
+with policy/value networks. To our knowledge, no prior work has applied RL to
+Y.
+
+% ══════════════════════════════════════════════════════════════════════════
+\section{Game Environment}
+% ══════════════════════════════════════════════════════════════════════════
+
+\subsection{Rules of Y}
+
+Y is played on a triangular board of side length $N$, comprising
+$N(N+1)/2$ hexagonal cells. Two players alternate placing stones of their color.
+A player wins by forming a connected group of stones that simultaneously touches
+all three sides of the triangle. Unlike Hex, all three sides are shared win
+conditions rather than belonging to a specific player, which prevents draws and
+creates richer tactical situations near board corners.
+
+\subsection{Implementation}
+
+The game engine is implemented in Cython for performance. The \texttt{Board}
+class stores cell occupancy in a flat integer array and uses a BFS-based win
+detector that checks whether a connected component of a given player's stones
+touches all three sides. The \texttt{Game} wrapper tracks turn order, move
+history, and terminal state.
+
+All experiments use a board of side length $N = 7$, giving 28 cells and an
+action space of $|\mathcal{A}| = 28$. Boards of size 9 was implemented on search based algorithms, but not for stable baseline algorithms, hence 9 to 19 board sizes are planned for
+future evaluation but were not included in the current study due to
+the rapid growth of computational requirements with board size.
+
+\subsection{Gymnasium Environment}
+
+We provide two Gymnasium-compatible environments. \texttt{YGameEnv} exposes a
+\texttt{Discrete(28)} action space suitable for PPO, A2C, DQN, and MaskablePPO.
+\texttt{ContinuousYGameEnv} exposes a \texttt{Box(-1,1, shape=(28,))} action
+space for DDPG, TD3, and SAC, where the environment applies a legality mask to
+the continuous output before taking an argmax to select the actual cell. The
+observation is a float32 vector of length $28 \times 3 + 1 = 85$ encoding, for
+each cell, whether it is empty, occupied by the current player, or occupied by the
+opponent, plus a bias feature. This encoding is always computed from the
+perspective of the player to move, ensuring that a single model can play as
+either colour.
+
+The environment calls the opponent's \texttt{choose\_move()} inside
+\texttt{step()}, so the RL agent always receives states where it is its turn to
+move. An illegal move immediately terminates the episode with reward $-1$; a win
+returns $+1$ and a loss returns $-1$; all other transitions return $0$.
+
+% ══════════════════════════════════════════════════════════════════════════
+\section{Agent Architectures}
+% ══════════════════════════════════════════════════════════════════════════
+
+Fig.~\ref{fig:arena} provides an overview of the full system, showing the
+relationship between agents, the Y-Hex environment, the SB3 training pipeline,
+the arena round-robin engine, and the Elo aggregation step.
+
+\subsection{Baseline Agents}
+
+\textbf{Random Agent.} Selects a uniformly random legal move. Serves as the
+floor baseline.
+
+\textbf{Heuristic Agent.} Performs 1-ply lookahead and scores each successor
+position by (i) how many distinct board sides the best-connected component of the
+current player touches (primary), (ii) the stone count of that component, and
+(iii) the number of empty cells adjacent to the player's stones. No learning
+is involved; domain knowledge is encoded directly in the evaluation function.
+
+\subsection{MCTS Agents}
+
+\textbf{MCTS.} Standard UCB1-based Monte Carlo Tree Search implemented in Cython.
+Each iteration performs selection, expansion, a random rollout to game end, and
+backpropagation. All experiments use 500 iterations per move.
+
+\textbf{PV-MCTS.} A policy/value-guided MCTS agent following the AlphaZero
+architecture. A two-layer MLP (hidden size 192) with a shared trunk, policy head
+(softmax over 28 cells), and value head (sigmoid scalar) is trained from 200
+teacher self-play games generated by a strong MCTS agent (2\,000 iterations). At
+inference, PUCT selection weights move priors from the policy network. The value
+head is blended with terminal rollouts at leaf nodes (weight 0.25).
+
+\textbf{SP-PV-MCTS.} The self-play variant of PV-MCTS. The same MLP is trained
+entirely from its own MCTS search statistics over 7 generations of 60 games each
+(300 search iterations per move), with no external teacher. Policy targets are the
+visit-count distributions from MCTS; value targets are final game outcomes.
+
+\textbf{SP-PV-CNN.} Replaces the MLP trunk of SP-PV-MCTS with a small CNN.
+The triangular board is embedded diagonally into an $N \times N$ grid with four
+input channels (exists mask, mine, opponent, empty), followed by three
+$3 \times 3$ convolutional layers (24 channels each) and a small dense head.
+Six-way board-symmetry augmentation is applied during training. The agent uses
+350 MCTS iterations per move.
+
+\textbf{SP-Policy-CNN.} A policy-only CNN that plays directly from the network
+output with no MCTS at inference time. Trained by REINFORCE on its own self-play
+trajectories with symmetry augmentation. Represents the lower bound of the
+CNN-based approach family.
+
+\subsection{Temporal Difference Agents}
+
+All TD agents use 1-ply lookahead: evaluate every legal successor from the
+opponent's perspective, then choose the move minimising the opponent's estimated
+win probability.
+
+\textbf{TD(0).} A two-layer MLP ($85 \to 128 \to 1$, ReLU/sigmoid) trained by
+TD(0) self-play. The value function $V(s) \in [0,1]$ estimates the probability
+that the current player wins. Training runs for 2\,000 self-play games with
+$\epsilon$-greedy exploration ($\epsilon = 0.1$).
+
+\textbf{TD($\lambda$).} Extends TD(0) with eligibility traces ($\lambda = 0.7$),
+propagating TD errors across entire episodes. Uses the same network and training
+budget.
+
+\textbf{TD-CNN.} Replaces the MLP with the same diagonal-embedding CNN described
+for SP-PV-CNN, but trained with TD(0) updates rather than MCTS self-play. Three
+convolutional layers ($32, 32, 16$ channels) feed a 64-unit dense head.
+
+\subsection{SB3 Deep RL Agents}
+
+All SB3 agents use \texttt{MlpPolicy} and the default network architecture
+provided by Stable-Baselines3. Training uses 500\,000 steps per stage with an
+iterative self-play curriculum of three stages, for a total of 2\,M steps per
+agent. In each self-play stage, the model from the previous stage is frozen via
+save/load (not \texttt{deepcopy}, which is incompatible with PyTorch weight
+normalisation) and used as the opponent.
+
+\textbf{MaskablePPO.} PPO \cite{schulman2017} with action masking from
+sb3-contrib. The policy's logits for illegal cells are set to $-\infty$ before
+the softmax, ensuring zero probability mass on illegal moves at every gradient
+step. This is the recommended algorithm for discrete board games.
+
+\textbf{PPO.} Standard PPO without action masking. Illegal moves are penalised
+with reward $-1$ and episode termination, requiring the policy to learn the
+legality constraint from environment feedback alone.
+
+\textbf{A2C.} Synchronous Advantage Actor-Critic with $n = 5$ environment steps
+per update. Simpler than PPO (no clipping, no multiple epochs per rollout), which
+trades peak performance for training stability.
+
+\textbf{DQN.} Deep Q-Network \cite{mnih2015} with an experience replay buffer
+(100\,000 transitions), $\epsilon$-greedy exploration (final $\epsilon = 0.05$),
+and a target network. Off-policy learning provides better sample efficiency than
+on-policy methods on small boards.
+
+
+
+% ══════════════════════════════════════════════════════════════════════════
+\section{Evaluation Methodology}
+% ══════════════════════════════════════════════════════════════════════════
+
+\subsection{Training Evaluation}
+
+During TD agent training, checkpoint evaluations are run every 100 games against
+a random baseline and a heuristic baseline. At each checkpoint, the agent plays
+50 games as both P1 and P2 against each opponent (100 games per checkpoint per
+opponent). Fig.~\ref{fig:training_curves} shows win-rate trajectories for a
+representative TD(0) run (hidden size 256).
+
+\subsection{Round-Robin Tournament}
+
+All trained agents compete in a round-robin tournament. For each ordered pair
+$(A_i, A_j)$ with $i \neq j$, $N_{\text{games}}$ games are played with $A_i$ as
+Player 1 and $A_j$ as Player 2. Because Y has a first-player advantage (no swap
+rule is implemented), both orderings are played and results are aggregated. The
+primary evaluation uses $N_{\text{games}} = 50$ per ordered pair (100 per
+unordered pair).
+
+\subsection{Bradley--Terry Elo}
+
+We fit a Bradley--Terry model \cite{bradleyterry1952} to the tournament results.
+The strength parameter $\alpha_i$ for agent $i$ satisfies
+\begin{equation}
+  P(i \text{ beats } j) = \frac{e^{\alpha_i}}{e^{\alpha_i} + e^{\alpha_j}},
+\end{equation}
+which is equivalent to a logistic Elo model with scale factor
+$\frac{400}{\ln 10} \approx 173.7$. Strengths are estimated by Newton--Raphson
+on the log-likelihood. We fix the weakest agent's strength to zero, centre all
+strengths, and report ratings on the standard Elo scale anchored at 1500.
+Standard errors are derived from the inverse Fisher information matrix.
+
+% ══════════════════════════════════════════════════════════════════════════
+
+% ── Full-width architecture figure ─────────────────────────────────────────
+\begin{figure*}[t]
+  \centering
+   \includegraphics[width=\textwidth]{arena.png}
+  \caption{System architecture overview. \textbf{Left:} Agent roster covering
+    SB3 deep RL agents (MaskablePPO, PPO, A2C, DQN) and MCTS and TD agents. \textbf{Centre:} The Y-Hex
+    Gymnasium environment showing the triangular board, observation encoding,
+    and action space with legality masking. \textbf{Right:} The SB3 training
+    pipeline with optional iterative self-play stages and model checkpointing.
+    \textbf{Bottom:} The Arena round-robin tournament engine (ordered-pair
+    matchup table and single-game loop) feeding into Bradley--Terry Elo
+    aggregation.}
+  \label{fig:arena}
+\end{figure*}
+
+% ══════════════════════════════════════════════════════════════════════════
+\section{Experiments and Results}
+% ══════════════════════════════════════════════════════════════════════════
+
+\subsection{Training Dynamics (TD Agents)}
+
+Fig.~\ref{fig:training_output} shows the checkpoint win-rate trajectories for a
+TD(0) agent (hidden size 256) trained over 2\,000 self-play games on a size-7
+board, evaluated every 100 games against random and heuristic opponents.
+
+Against the random baseline, the agent quickly rises to approximately 70\% win
+rate within the first 200 games and continues improving to over 85\% by game
+2\,000, demonstrating that meaningful learning occurs early in training. Against
+the heuristic baseline, progress is slower and more volatile: the agent reaches
+only 14--23\% win rate across all checkpoints, confirming the difficulty of
+surpassing the hand-coded evaluation function with a shallow value-based approach.
+
+The ``current vs.\ previous checkpoint'' panel reveals that the agent does not
+monotonically improve over successive checkpoints: in 5 out of 20 checkpoints,
+the current agent loses to the previous snapshot in one or both seat assignments.
+This oscillation is characteristic of TD self-play and motivates more structured
+training curricula.
+
+\subsection{Overall Elo Leaderboard}
+
+Table~\ref{tab:elo_full} presents the final Bradley--Terry Elo ratings from a
+unified round-robin tournament combining all nine trained agents plus the
+random and heuristic baselines. The SB3 agents were evaluated in a separate
+tournament with identical methodology; their relative ordering is well-established
+but their absolute Elo values are not directly comparable to the main tournament
+due to different opponent pools.
+
+\begin{table}[h]
+  \centering
+  \caption{Final Bradley--Terry Elo Leaderboard (all agents, $N=50$ games per
+    ordered pair, board size 7). SB3 agents evaluated in a separate tournament;
+    see Section~\ref{sec:sb3results} for details.}
+  \label{tab:elo_full}
+  \renewcommand{\arraystretch}{1.15}
+  \begin{tabular}{clrrl}
+    \toprule
+    \textbf{Rank} & \textbf{Agent} & \textbf{Elo} & \textbf{$\pm$SE} & \textbf{Tier} \\
+    \midrule
+    1  & SP-PV-MCTS(500)   & 2085 & 42 & Search + Self-play \\
+    2  & PV-MCTS(500)      & 2071 & 42 & Search + Self-play \\
+    3  & SP-PV-CNN(500)    & 2018 & 41 & Search + Self-play \\
+    4  & MCTS(500)         & 1869 & 38 & Pure Search        \\
+    \midrule
+    5  & MaskablePPO       & 1740 & 18 & SB3 RL             \\
+    6  & Heuristic         & 1716 & 17 & Domain Knowledge   \\
+    7  & DQN               & 1528 & 15 & SB3 RL             \\
+    8  & A2C               & 1429 & 15 & SB3 RL             \\
+    9  & PPO               & 1369 & 16 & SB3 RL             \\
+    \midrule
+    10 & SP-Policy-CNN     & 1227 & 31 & Policy CNN         \\
+    11 & TD(0)             & 1224 & 31 & TD Learning        \\
+    12 & TD($\lambda=0.7$) & 1211 & 31 & TD Learning        \\
+    13 & TD-CNN            & 1065 & 33 & TD Learning        \\
+    14 & Random            &  867 & 40 & Baseline           \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Three distinct performance tiers are clearly visible:
+\begin{itemize}
+  \item \textbf{Tier 1 (Elo $>$ 1869):} Search-based agents. The ${\sim}150$
+    Elo gap separating MCTS(500) from the Heuristic baseline implies decisive advantage of runtime
+    tree search over any learned policy alone.
+  \item \textbf{Tier 2 (Elo 1300--1750):} SB3 RL agents and the Heuristic.
+    MaskablePPO sits above the Heuristic; the remaining SB3 agents fall below
+    it. All four SB3 methods substantially outperform the TD agents.
+  \item \textbf{Tier 3 (Elo $<$ 1250):} TD agents, SP-Policy-CNN, and
+    Random. The three TD variants cluster within 160 Elo points of each other
+    and near the no-search CNN baseline, suggesting a shared representational
+    ceiling for value-only approaches without lookahead.
+\end{itemize}
+
+\subsection{Search Agent Analysis}
+
+\subsubsection{MCTS}
+Plain MCTS with 500 iterations per move achieves Elo 1869, defeating every
+non-search agent with near-100\% win rates. It loses to PV-MCTS and SP-PV-MCTS
+with 30\% and 25\% win rates respectively, confirming that policy network priors
+meaningfully improve search efficiency.
+
+\subsubsection{PV-MCTS vs.\ SP-PV-MCTS}
+PV-MCTS (trained from a teacher MCTS) achieves Elo 2071 and SP-PV-MCTS (pure
+self-play) achieves Elo 2085 a difference of only 14 Elo points with
+overlapping error bars ($\pm 42$). Head-to-head, SP-PV-MCTS wins 22/40 games,
+suggesting a marginal edge for self-play training but no statistically significant
+advantage over teacher distillation at this scale.
+
+\subsubsection{SP-PV-CNN}
+The CNN-trunked self-play agent achieves Elo 2018, placing third. Notably it
+exhibits a strong first-player advantage: as P1 it wins 90\% of games against
+SP-PV-MCTS, but loses 19/20 as P2. This asymmetry suggests the CNN learned an
+aggressive opening strategy tuned to first-move advantage rather than a general
+positional understanding.
+
+\subsubsection{SP-Policy-CNN}
+Without MCTS at inference time, the self-play CNN collapses to Elo 1227 nearly
+800 Elo below SP-PV-CNN. The runtime search component contributes the vast
+majority of the MCTS-family performance, not the network itself.
+
+\subsection{TD Agent Analysis}
+
+\subsubsection{TD(0) vs.\ TD($\lambda$)}
+TD(0) (Elo 1224) and TD($\lambda = 0.7$) (Elo 1211) are separated by only 13
+Elo points ($\ll$ the $\pm 31$ standard errors). Their head-to-head record is
+perfectly one-sided (TD(0) wins all 40 games), but this reflects a degenerate
+fixed-point in the deterministic policy rather than a genuine strength gap. The
+two agents are functionally equivalent at the population level.
+
+The minimal impact of eligibility traces corroborates the conclusion that the
+bottleneck for TD agents in Y is the depth of lookahead, not the quality of
+credit assignment. A single-step bootstrapping target is already sufficient to
+extract most of the learning signal available to a 1-ply agent.
+
+\subsubsection{TD-CNN}
+The CNN value function achieves Elo 1065, underperforming both MLP-based TD
+variants. This is counterintuitive given the richer representational capacity of
+the CNN, but is consistent with prior observations that convolutional features
+tuned to spatial patterns can overfit to specific board configurations during
+self-play, reducing generalization.
+
+\subsection{SB3 Deep RL Agent Analysis}
+\label{sec:sb3results}
+
+\subsubsection{Experimental Setup}
+SB3 agents were trained on Google Colab (T4 GPU). Each agent was trained for 500\,000 steps per
+stage across four stages (stage 0 vs.\ RandomAgent; stages 1--3 self-play),
+totalling 2\,M steps per agent. The SB3 tournament used $N = 50$ games per
+ordered pair with baselines Random and Heuristic; TD agents and MCTS are included
+in the main tournament table.
+
+Fig.~\ref{fig:sb3_elo} shows the Elo rating achieved by each SB3 algorithm as a
+function of cumulative training iterations, illustrating both the benefit of
+self-play stages and the divergence between masked and unmasked methods.
+
+\subsubsection{MaskablePPO}
+MaskablePPO achieves Elo 1740, outperforming the Heuristic (1716) and all TD
+agents. The action mask eliminates gradient waste on illegal moves: with 28 cells
+and an average of $\sim\!18$ legal moves per position, approximately one-third
+of the standard PPO policy gradient flows toward cells that cannot legally be
+played. Masking redirects this entirely toward learning a better policy over legal
+moves. MaskablePPO wins 54/100 games against the Heuristic, a 54\% win rate
+corresponding to the 24 Elo point gap.
+
+\subsubsection{PPO}
+Plain PPO achieves Elo 1369, 371 points below MaskablePPO and below both A2C and
+the Heuristic. Notably, PPO was observed to perform better at 50\,000 steps
+(Elo $\approx 1273$) than after the full 2\,M step curriculum, indicating policy
+collapse during self-play. The on-policy clipping mechanism of PPO appears to
+interact poorly with the non-stationary opponent distribution in self-play,
+causing the policy to oscillate rather than converge. This effect is well
+documented for on-policy methods in adversarial self-play settings \cite{balduzzi2019}.
+
+\subsubsection{A2C}
+A2C achieves Elo 1429, placing above PPO despite being the simpler algorithm.
+Its synchronous update rule (no clipping, no multiple epochs per rollout) is more
+conservative and less prone to the overshooting that destabilises PPO under
+self-play. A2C wins 66/100 head-to-head against PPO, a striking reversal of
+the typical relative ranking of these algorithms on single-task environments.
+
+\subsubsection{DQN}
+DQN achieves Elo 1528, the second-highest SB3 result. Its replay buffer provides
+effective sample reuse that on-policy methods cannot exploit. However, DQN
+exhibits a pronounced first-player advantage: it wins 50/50 as P1 against
+MaskablePPO but 0/50 as P2, suggesting it learned a position-dependent opening
+strategy rather than a symmetric game policy. This is a known failure mode for
+Q-learning on asymmetric games without careful opponent randomisation.
+
+\begin{table}[h]
+  \centering
+  \caption{SB3 Agent Elo ratings (separate tournament, $N=50$ per ordered pair).}
+  \label{tab:sb3_elo}
+  \renewcommand{\arraystretch}{1.15}
+  \begin{tabular}{clrrc}
+    \toprule
+    \textbf{Rank} & \textbf{Agent} & \textbf{Elo} & \textbf{$\pm$SE} & \textbf{Win\%} \\
+    \midrule
+    1 & MaskablePPO & 1740 & 18 & 80.2\% \\
+    2 & Heuristic   & 1716 & 17 & 77.6\% \\
+    3 & DQN         & 1528 & 15 & 53.8\% \\
+    4 & A2C         & 1429 & 15 & 40.4\% \\
+    5 & PPO         & 1369 & 16 & 32.6\% \\
+    6 & Random      & 1218 & 19 & 15.4\% \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{Head-to-Head Heatmap}
+
+Fig.~\ref{fig:heatmap} shows the pairwise win rates (combined across both seat
+assignments) for the main tournament. The clear block structure confirms the
+three-tier hierarchy: each tier wins near-100\% against lower tiers and splits
+roughly evenly within its tier.
+
+\subsection{First-Player Advantage}
+
+Table~\ref{tab:p1advantage} summarises first-player win rates for selected
+matchups. Without a swap rule, P1 wins 60--100\% of games against similarly
+skilled opponents. The strongest agents partially offset this by playing
+differently as P2: SP-PV-MCTS as P2 wins 30\% against MCTS (P1), significantly
+above random, indicating genuine second-player strategy. DQN's 0\% win rate as
+P2 against MaskablePPO stands out as an extreme case of P1-dependent play.
+
+\begin{table}[h]
+  \centering
+  \caption{First-player win rates for selected matchups ($N=50$ per direction).}
+  \label{tab:p1advantage}
+  \renewcommand{\arraystretch}{1.15}
+  \begin{tabular}{llc}
+    \toprule
+    \textbf{P1 Agent} & \textbf{P2 Agent} & \textbf{P1 Win\%} \\
+    \midrule
+    SP-PV-MCTS & SP-PV-CNN     & 95\%  \\
+    PV-MCTS    & SP-PV-MCTS    & 60\%  \\
+    MCTS       & PV-MCTS       & 30\%  \\
+    MaskablePPO & Heuristic    & 56\%  \\
+    DQN        & MaskablePPO   & 100\% \\
+    DQN        & MaskablePPO (P2) & 0\%  \\
+    Heuristic  & Random        & 95\%  \\
+    TD(0)      & Heuristic     & 60\%  \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+% ── Figures referenced in results ─────────────────────────────────────────
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\columnwidth]{training_output.png}
+  \caption{Mid-training TD(0) evaluation on a $7\times 7$ board (10k self-play games, hidden size 256). \textbf{Top:} directional and aggregated win rates versus random and heuristic agents. \textbf{Bottom:} checkpoint outcomes for current versus previous (Lost both, Won only as P2, Won only as P1, Won both). The dotted line marks checkpoint 1900 (selected best checkpoint), using a rough composite score $\mathrm{Score} = w_{\mathrm{prev}}\,\mathrm{WR}(\mathrm{curr\ vs\ prev}) + w_{\mathrm{heur}}\,\mathrm{WR}(\mathrm{curr\ vs\ heuristic}) + w_{\mathrm{rand}}\,\mathrm{WR}(\mathrm{curr\ vs\ random})$. Across runs, changing hidden size, number of training games, or using the best checkpoint did not show a consistent impact on performance.}
+  \label{fig:training_output}
+\end{figure}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\columnwidth]{sb3_elo_vs_iters.png}
+  \caption{SB3 agent Elo rating vs.\ cumulative training iterations (500\,k
+    steps per stage, 4 stages). Each stage boundary is marked with a vertical
+    dashed line. Shaded region indicates $\pm1$ standard error. MaskablePPO
+    improves monotonically; PPO degrades after stage 2, consistent with
+    self-play induced policy collapse.}
+  \label{fig:sb3_elo}
+\end{figure}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\columnwidth]{heatmap.png}
+  \caption{Head-to-head win-rate heatmap (combined across both seat assignments,
+    $N=100$ games per unordered pair, main tournament). Darker cells indicate
+    higher win rate for the row agent. The block-diagonal structure confirms three
+    distinct performance tiers.}
+  \label{fig:heatmap}
+\end{figure}
+
+% ══════════════════════════════════════════════════════════════════════════
+\section{Discussion}
+% ══════════════════════════════════════════════════════════════════════════
+
+\subsection{Search Is the Dominant Factor}
+
+The ${\sim}150$ Elo gap between the best non-search agent (MaskablePPO, 1740)
+and the weakest search agent (MCTS(500), 1869) is a significant finding
+in this study. Runtime tree search provides a form of implicit planning that
+learned value functions cannot replicate at comparable compute budgets. This is
+consistent with the broader literature showing that search scales more efficiently
+than network depth for combinatorial games at moderate board sizes \cite{silver2017}.
+
+\subsection{Action Masking Is Critical for Deep RL}
+
+The 371 Elo gap between MaskablePPO and PPO despite identical network
+architecture, training budget, and self-play curriculum demonstrates that action
+masking is the single most impactful design decision for applying deep RL to board
+games. On a 28-cell board with an average of 18 legal moves, roughly 36\% of the
+policy gradient in standard PPO is wasted on illegal cells. Masking eliminates
+this waste entirely and is essentially free to implement using sb3-contrib.
+
+\subsection{Self-Play Curriculum Effects Diverge by Algorithm}
+
+Self-play consistently benefits search-based agents (PV-MCTS, SP-PV-MCTS)
+and mildly helps stable on-policy agents (A2C), but harms PPO. The instability
+arises because PPO's clipping mechanism was designed for stationary environments;
+when the opponent distribution shifts every 500\,k steps, the old-policy
+reference used by the clip objective becomes stale faster than the clipping
+horizon compensates. This motivates opponent-pool methods such as PFSP
+\cite{vinyals2019} or league training for future work.
+
+\subsection{TD Agents Are Fundamentally Limited by Lookahead Depth}
+
+The near-identical performance of TD(0) and TD($\lambda$) indicates that credit
+assignment is not the bottleneck for TD agents in Y. The bottleneck is lookahead
+depth: 1-ply evaluation cannot capture the multi-move threats that characterise
+Y strategy. Extending TD agents to 2-ply or 3-ply search would be a direct test
+of this hypothesis.
+
+% ══════════════════════════════════════════════════════════════════════════
+\section{Conclusion}
+% ══════════════════════════════════════════════════════════════════════════
+
+This was our comprehensive RL study of the connection game Y,
+implementing and evaluating nine agents across three paradigms on a size-7 board.
+Our main findings are:
+
+\begin{enumerate}
+  \item \textbf{Search dominates:} MCTS and its policy/value-guided variants
+    occupy the top four positions with a ${\sim}500$ Elo gap to all non-search
+    methods. Runtime lookahead cannot be replaced by learned value functions at
+    modest compute budgets.
+  \item \textbf{Action masking is decisive for deep RL:} MaskablePPO outperforms
+    all TD agents and matches the hand-coded Heuristic after 2\,M steps.
+    Plain PPO without masking performs near the TD tier.
+  \item \textbf{Algorithm stability matters for self-play:} A2C outperforms PPO
+    under self-play due to its simpler, more conservative update rule. Self-play
+    curriculum design is critical for on-policy gradient methods.
+  \item \textbf{TD methods share a representational ceiling:} TD(0), TD($\lambda$),
+    and TD-CNN cluster within 160 Elo points of each other and of the no-search
+    CNN baseline, confirming that value function quality is not the binding
+    constraint.
+\end{enumerate}
+
+\subsection{Future Work}
+
+Several extensions are immediately motivated by these results:
+\begin{itemize}
+  \item \textbf{Larger boards} (size 9–19): The performance hierarchy may
+    change as the branching factor grows and rollout quality becomes less reliable
+    for pure MCTS.
+  \item \textbf{MaskablePPO + MCTS guidance:} Training MaskablePPO from MCTS
+    visit-count targets (as in AlphaZero) rather than environment rewards could
+    close the gap between the SB3 and search tiers.
+  \item \textbf{Opponent-pool self-play:} PFSP or league training for PPO-based
+    agents to prevent policy collapse under non-stationary opponents.
+  \item \textbf{Multi-ply TD lookahead:} Extending 1-ply TD to 2- or 3-ply to
+    isolate whether search depth or value accuracy is the binding constraint.
+  \item \textbf{Continuous-action agents:} DDPG, TD3, and SAC with the masked
+    argmax environment wrapper remain untested and could provide interesting
+    comparisons against discrete-action baselines.
+\end{itemize}
+
+
+
+% ══════════════════════════════════════════════════════════════════════════
+% References
+% ══════════════════════════════════════════════════════════════════════════
+\begin{thebibliography}{99}
+
+\bibitem{silver2016}
+D. Silver et al., ``Mastering the game of Go with deep neural networks and tree
+search,'' \textit{Nature}, vol.\ 529, pp.\ 484--489, 2016.
+
+\bibitem{silver2017}
+D. Silver et al., ``Mastering Chess and Shogi by Self-Play with a General
+Reinforcement Learning Algorithm,'' \textit{arXiv:1712.01815}, 2017.
+
+\bibitem{schrittwieser2021}
+J. Schrittwieser et al., ``Online and Offline Reinforcement Learning by Planning
+with a Learned Model,'' \textit{arXiv:2104.06294}, 2021.
+
+\bibitem{anthony2017}
+T. Anthony, Z. Tian, and D. Barber, ``Thinking Fast and Slow with Deep Learning
+and Tree Search,'' \textit{Advances in Neural Information Processing Systems},
+vol.\ 30, 2017.
+
+\bibitem{harbecke2025}
+D. Harbecke, ``HexHex: AlphaGo Zero adaptation for Hex,'' GitHub repository,
+2025. [Online]. Available: \url{https://github.com/harbecke/HexHex}
+
+\bibitem{tesauro1995}
+G. Tesauro, ``Temporal difference learning and TD-Gammon,''
+\textit{Communications of the ACM}, vol.\ 38, no.\ 3, pp.\ 58--68, 1995.
+
+\bibitem{campbell2002}
+M. Campbell, A. J. Hoane, and F.-h. Hsu, ``Deep Blue,'' \textit{Artificial
+Intelligence}, vol.\ 134, pp.\ 57--83, 2002.
+
+\bibitem{mnih2015}
+V. Mnih et al., ``Human-level control through deep reinforcement learning,''
+\textit{Nature}, vol.\ 518, pp.\ 529--533, 2015.
+
+\bibitem{schulman2017}
+J. Schulman, F. Wolski, P. Dhariwal, A. Radford, and O. Klimov, ``Proximal
+Policy Optimization Algorithms,'' \textit{arXiv:1707.06347}, 2017.
+
+\bibitem{raffin2021}
+A. Raffin et al., ``Stable-Baselines3: Reliable Reinforcement Learning
+Implementations,'' \textit{Journal of Machine Learning Research}, vol.\ 22,
+no.\ 268, pp.\ 1--8, 2021.
+
+\bibitem{sb3contrib}
+A. Raffin et al., ``SB3-Contrib: Contrib Package for Stable-Baselines3,''
+GitHub repository, 2021. [Online]. Available:
+\url{https://github.com/Stable-Baselines-Team/stable-baselines3-contrib}
+
+\bibitem{bradleyterry1952}
+R. A. Bradley and M. E. Terry, ``Rank analysis of incomplete block designs:
+I. The method of paired comparisons,'' \textit{Biometrika}, vol.\ 39,
+pp.\ 324--345, 1952.
+
+\bibitem{veness2009}
+J. Veness, D. Silver, W. Uther, and A. Blair, ``Bootstrapping from Game Tree
+Search,'' \textit{Advances in Neural Information Processing Systems}, 2009.
+
+\bibitem{balduzzi2019}
+D. Balduzzi et al., ``Open-ended learning leads to generally capable agents,''
+\textit{arXiv:1901.08568}, 2019.
+
+\bibitem{vinyals2019}
+O. Vinyals et al., ``Grandmaster level in StarCraft II using multi-agent
+reinforcement learning,'' \textit{Nature}, vol.\ 575, pp.\ 350--354, 2019.
+
+\end{thebibliography}
+
+\end{document}
