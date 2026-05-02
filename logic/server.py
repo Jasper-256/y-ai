@@ -38,6 +38,21 @@ def set_agents():
     return jsonify({"status": "error", "message": "unknown agent key"}), 400
 
 
+@app.route("/move", methods=["POST"])
+def move():
+    data = request.get_json(force=True)
+    try:
+        row = int(data["row"])
+        col = int(data["col"])
+    except (KeyError, TypeError, ValueError):
+        return jsonify({"status": "error", "message": "row and col are required"}), 400
+
+    ok, message = self_play.make_human_move(row, col)
+    if ok:
+        return jsonify({"status": "ok"})
+    return jsonify({"status": "error", "message": message}), 400
+
+
 if __name__ == "__main__":
     self_play.start()
     app.run(port=5001)

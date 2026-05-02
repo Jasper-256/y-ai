@@ -76,6 +76,19 @@ h1 {
   min-height: 0;
 }
 
+.cell {
+  transition: opacity 120ms ease, filter 120ms ease;
+}
+
+.cell.playable {
+  cursor: pointer;
+}
+
+.cell.playable:hover {
+  filter: brightness(1.16);
+  opacity: 0.9;
+}
+
 .move-count {
   margin: 0.5rem 0 0;
   color: #888;

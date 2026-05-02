@@ -19,12 +19,13 @@ from sp_pv_cnn_agent import load_or_train_self_play_cnn_pv_mcts
 from sp_policy_cnn_agent import SPPolicyCNNAgent, load_or_train_self_play_policy_cnn
 
 BOARD_SIZE = 7
+MCTS_ITERATIONS = 500
 MOVE_DELAY = 0.3  # seconds between moves for watchability
 GAME_OVER_DELAY = 3
 
 # Available agent constructors
 AGENT_REGISTRY = {
-    "mcts": lambda: MCTSAgent(iterations=5000),
+    "mcts": lambda: MCTSAgent(iterations=MCTS_ITERATIONS),
     "pv_mcts": lambda: _load_pv_mcts_agent(),
     "sp_pv_mcts": lambda: _load_self_play_pv_mcts_agent(),
     "sp_pv_cnn": lambda: _load_self_play_pv_cnn_agent(),
@@ -36,10 +37,11 @@ AGENT_REGISTRY = {
 }
 
 AGENT_LABELS = {
-    "mcts": "MCTS (5k iter)",
-    "pv_mcts": "PV-MCTS (400 iter)",
-    "sp_pv_mcts": "SP-PV-MCTS (600 iter)",
-    "sp_pv_cnn": "SP-PV-CNN (350 iter)",
+    "human": "Human",
+    "mcts": "MCTS (500 iter)",
+    "pv_mcts": "PV-MCTS (500 iter)",
+    "sp_pv_mcts": "SP-PV-MCTS (500 iter)",
+    "sp_pv_cnn": "SP-PV-CNN (500 iter)",
     "sp_policy_cnn": "SP-Policy-CNN",
     "random": "Random",
     "td": "TD(0)",
@@ -90,7 +92,7 @@ def _load_pv_mcts_agent():
         hidden_size=192,
         epochs=80,
     )
-    return PVMCTSAgent(net=net, iterations=600)
+    return PVMCTSAgent(net=net, iterations=MCTS_ITERATIONS)
 
 
 def _load_self_play_pv_mcts_agent():
@@ -102,7 +104,7 @@ def _load_self_play_pv_mcts_agent():
         hidden_size=192,
         epochs=25,
     )
-    return PVMCTSAgent(net=net, iterations=600)
+    return PVMCTSAgent(net=net, iterations=MCTS_ITERATIONS)
 
 
 def _load_self_play_pv_cnn_agent():
@@ -113,7 +115,12 @@ def _load_self_play_pv_cnn_agent():
         search_iters=100,
         epochs=18,
     )
-    return PVMCTSAgent(net=net, iterations=350, rollouts_per_leaf=1, value_weight=0.25)
+    return PVMCTSAgent(
+        net=net,
+        iterations=MCTS_ITERATIONS,
+        rollouts_per_leaf=1,
+        value_weight=0.25,
+    )
 
 
 def _load_self_play_policy_cnn_agent():
@@ -127,8 +134,8 @@ def _load_self_play_policy_cnn_agent():
 
 
 _game = Game(size=BOARD_SIZE)
-_agents = {1: MCTSAgent(iterations=5000), 2: MCTSAgent(iterations=5000)}
-_agent_names = {1: "mcts", 2: "mcts"}
+_agents = {1: _load_self_play_pv_mcts_agent(), 2: None}
+_agent_names = {1: "sp_pv_mcts", 2: "human"}
 _lock = threading.Lock()
 _running = False
 
@@ -149,15 +156,27 @@ def get_state():
 def set_agents(p1_key, p2_key):
     """Swap in new agents and restart the game."""
     global _game, _agents, _agent_names
-    if p1_key not in AGENT_REGISTRY or p2_key not in AGENT_REGISTRY:
+    if p1_key not in AGENT_LABELS or p2_key not in AGENT_LABELS:
         return False
     with _lock:
         _agent_names[1] = p1_key
         _agent_names[2] = p2_key
-        _agents[1] = AGENT_REGISTRY[p1_key]()
-        _agents[2] = AGENT_REGISTRY[p2_key]()
+        _agents[1] = AGENT_REGISTRY[p1_key]() if p1_key in AGENT_REGISTRY else None
+        _agents[2] = AGENT_REGISTRY[p2_key]() if p2_key in AGENT_REGISTRY else None
         _game = Game(size=BOARD_SIZE)
     return True
+
+
+def make_human_move(row, col):
+    """Apply a move for the current player when that side is human-controlled."""
+    with _lock:
+        if _game.is_over():
+            return False, "game is over"
+        if _agent_names[_game.current_player] != "human":
+            return False, "current player is not human"
+        if _game.make_move(row, col):
+            return True, None
+        return False, "illegal move"
 
 
 def _play_loop():
@@ -166,6 +185,9 @@ def _play_loop():
         with _lock:
             if _game.is_over():
                 game_over = True
+            elif _agent_names[_game.current_player] == "human":
+                game_over = False
+                agent = None
             else:
                 game_over = False
                 agent = _agents[_game.current_player]
@@ -177,6 +199,8 @@ def _play_loop():
             time.sleep(GAME_OVER_DELAY)
             with _lock:
                 _game = Game(size=BOARD_SIZE)
+        elif agent is None:
+            time.sleep(0.1)
         else:
             time.sleep(MOVE_DELAY)
 
